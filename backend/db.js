@@ -65,6 +65,47 @@ const initDB = async () => {
       )
     `);
 
+    // Student video progress
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS student_video_progress (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+        video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
+        watched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(student_id, video_id)
+      )
+    `);
+
+    // Games
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS games (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        type TEXT NOT NULL,
+        data JSONB NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Student game progress
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS student_game_progress (
+        student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+        game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+        score INTEGER DEFAULT 0,
+        completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(student_id, game_id)
+      )
+    `);
+
+    // Add missing columns to students if they don't exist
+    await pool.query(`
+      ALTER TABLE students 
+      ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0;
+    `);
+
     console.log('✅ PostgreSQL tables initialized');
   } catch (err) {
     console.error('❌ PostgreSQL initialization error:', err);
