@@ -46,7 +46,6 @@ export default function Navbar({ role = 'guest' }) {
         {role === 'student' && studentName && (
           <>
             <span className="navbar-user"><i className="ph ph-student"></i> {studentName}</span>
-            <button className="btn btn-secondary btn-sm" onClick={handleLogout}>Выйти</button>
           </>
         )}
         {role === 'guest' && (

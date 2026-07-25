@@ -81,21 +81,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
         {video.description && (
           <p className="video-desc">{video.description}</p>
         )}
-        {!playing && embedUrl && (
-          <button className="btn btn-primary btn-sm" onClick={handlePlay}>
-            <i className="ph ph-play-circle"></i> Смотреть урок
-          </button>
-        )}
-        {!embedUrl && (
-          <a href={video.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ width: 'fit-content' }} onClick={() => onPlay && onPlay()}>
-            <i className="ph ph-arrow-square-out"></i> Открыть ссылку
-          </a>
-        )}
-        {playing && embedUrl && (
-          <button className="btn btn-secondary btn-sm" onClick={() => setPlaying(false)}>
-            <i className="ph ph-x-circle"></i> Закрыть
-          </button>
-        )}
       </div>
 
       {/* Teacher actions */}
