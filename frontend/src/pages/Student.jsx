@@ -15,6 +15,7 @@ export default function Student() {
   const [games, setGames] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [weeklyActivity, setWeeklyActivity] = useState([]);
+  const [activeGame, setActiveGame] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   const GAME_CATEGORIES = [
