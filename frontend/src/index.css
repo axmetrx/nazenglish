@@ -3,9 +3,9 @@
 /* ─── Premium Minimalist Design System ─────────────────────────────────── */
 :root {
   /* Soft, elegant neutral backgrounds */
-  --bg-primary: #fcfcfd; 
+  --bg-primary: #eaf7f7; 
   --bg-secondary: #ffffff; 
-  --bg-tertiary: #f3f4f6; 
+  --bg-tertiary: #d3eded; 
   
   --border: #e5e7eb;
   --border-hover: #d1d5db;
