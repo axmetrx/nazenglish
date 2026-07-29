@@ -1,120 +1,110 @@
 const { pool } = require('./db');
 
 const SAMPLE_GAMES = [
-  // 🃏 Найди пару
+  // 🃏 Найди пару (Жубун тап)
   {
-    title: 'Животные 🐾',
+    title: 'Жаныбарлар / Животные 🐾',
     type: 'match_pairs',
     data: { pairs: [
-      { word: 'Cat', translation: 'Кошка' },
-      { word: 'Dog', translation: 'Собака' },
-      { word: 'Bird', translation: 'Птица' },
-      { word: 'Fish', translation: 'Рыба' },
-      { word: 'Horse', translation: 'Лошадь' },
-      { word: 'Rabbit', translation: 'Кролик' },
+      { word: 'Cat', translation: 'Мышык / Кошка' },
+      { word: 'Dog', translation: 'Ит / Собака' },
+      { word: 'Bird', translation: 'Канаттуу / Птица' },
+      { word: 'Fish', translation: 'Балык / Рыба' },
+      { word: 'Horse', translation: 'Жылкы / Лошадь' },
+      { word: 'Rabbit', translation: 'Коён / Кролик' },
     ]}
   },
   {
-    title: 'Фрукты и овощи 🍎',
+    title: 'Мөмө-жемиштер / Фрукты и овощи 🍎',
     type: 'match_pairs',
     data: { pairs: [
-      { word: 'Apple', translation: 'Яблоко' },
+      { word: 'Apple', translation: 'Алма / Яблоко' },
       { word: 'Banana', translation: 'Банан' },
       { word: 'Orange', translation: 'Апельсин' },
-      { word: 'Carrot', translation: 'Морковь' },
-      { word: 'Potato', translation: 'Картофель' },
+      { word: 'Carrot', translation: 'Сабиз / Морковь' },
+      { word: 'Potato', translation: 'Картошка' },
       { word: 'Tomato', translation: 'Помидор' },
     ]}
   },
   {
-    title: 'Цвета 🎨',
+    title: 'Түстөр / Цвета 🎨',
     type: 'match_pairs',
     data: { pairs: [
-      { word: 'Red', translation: 'Красный' },
-      { word: 'Blue', translation: 'Синий' },
-      { word: 'Green', translation: 'Зелёный' },
-      { word: 'Yellow', translation: 'Жёлтый' },
-      { word: 'Black', translation: 'Чёрный' },
-      { word: 'White', translation: 'Белый' },
+      { word: 'Red', translation: 'Кызыл / Красный' },
+      { word: 'Blue', translation: 'Көк / Синий' },
+      { word: 'Green', translation: 'Жашыл / Зелёный' },
+      { word: 'Yellow', translation: 'Сары / Жёлтый' },
+      { word: 'Black', translation: 'Кара / Чёрный' },
+      { word: 'White', translation: 'Ак / Белый' },
     ]}
   },
   {
-    title: 'Тело человека 🧍',
+    title: 'Адамдын денеси / Тело человека 🧍',
     type: 'match_pairs',
     data: { pairs: [
-      { word: 'Head', translation: 'Голова' },
-      { word: 'Eye', translation: 'Глаз' },
-      { word: 'Hand', translation: 'Рука' },
-      { word: 'Leg', translation: 'Нога' },
-      { word: 'Nose', translation: 'Нос' },
-      { word: 'Mouth', translation: 'Рот' },
+      { word: 'Head', translation: 'Баш / Голова' },
+      { word: 'Eye', translation: 'Көз / Глаз' },
+      { word: 'Hand', translation: 'Кол / Рука' },
+      { word: 'Leg', translation: 'Бут / Нога' },
+      { word: 'Nose', translation: 'Мурун / Нос' },
+      { word: 'Mouth', translation: 'Ооз / Рот' },
     ]}
   },
 
-  // 🔤 Анаграмма
+  // 🔤 Анаграмма (Сөздү тап)
   {
-    title: 'Угадай слово: Природа 🌿',
+    title: 'Сөздү тап: Табият / Природа 🌿',
     type: 'anagram',
     data: { words: ['tree', 'water', 'cloud', 'stone', 'grass', 'river', 'flower'] }
   },
   {
-    title: 'Угадай слово: Еда 🍕',
+    title: 'Сөздү тап: Тамак / Еда 🍕',
     type: 'anagram',
     data: { words: ['bread', 'sugar', 'pizza', 'salad', 'cheese', 'butter', 'coffee'] }
   },
   {
-    title: 'Угадай слово: Школа 🏫',
+    title: 'Сөздү тап: Мектеп / Школа 🏫',
     type: 'anagram',
     data: { words: ['book', 'pencil', 'school', 'table', 'lesson', 'class', 'student'] }
   },
 
   // 📖 Тест/Квиз
   {
-    title: 'Тест: Основы английского ✏️',
+    title: 'Тест: Негизги сөздөр / Основы ✏️',
     type: 'quiz',
     data: { questions: [
-      { question: "Как переводится 'Привет'?", options: ['Goodbye', 'Hello', 'Thank you', 'Sorry'], answer: 1 },
-      { question: "Что означает 'I am happy'?", options: ['Я устал', 'Я злой', 'Я счастлив', 'Я голодный'], answer: 2 },
-      { question: "Как сказать 'Меня зовут...'?", options: ['I have name...', 'I am name...', 'My name is...', 'Call me is...'], answer: 2 },
-      { question: "Что значит 'Thank you'?", options: ['Пожалуйста', 'Спасибо', 'Извините', 'Привет'], answer: 1 },
-      { question: "Переведите: 'The sun is bright'", options: ['Луна красивая', 'Солнце яркое', 'День холодный', 'Небо синее'], answer: 1 },
+      { question: "'Hello' сөзү кыргызча кандай которулат?", options: ['Саламатсызбы / Привет', 'Көрүшкөнчө / Пока', 'Рахмат / Спасибо', 'Кечириңиз / Извините'], answer: 0 },
+      { question: "'I am happy' эмнени билдирет?", options: ['Мен чарчадым', 'Мен ачууландым', 'Мен бактылуумун', 'Мен ачкамын'], answer: 2 },
+      { question: "'Менин атым...' англисче кандай болот?", options: ['I have name...', 'I am name...', 'My name is...', 'Call me is...'], answer: 2 },
+      { question: "'Thank you' эмнени билдирет?", options: ['Эч нерсе эмес', 'Рахмат / Спасибо', 'Кечириңиз', 'Салам'], answer: 1 },
+      { question: "Которгула: 'The sun is bright'", options: ['Ай сулуу', 'Күн тийип турат', 'Күн суук', 'Асман көк'], answer: 1 },
     ]}
   },
   {
-    title: 'Тест: Числа и цвета 🔢',
+    title: 'Тест: Сандар жана түстөр 🔢',
     type: 'quiz',
     data: { questions: [
-      { question: "Что значит 'Five'?", options: ['Три', 'Четыре', 'Пять', 'Шесть'], answer: 2 },
-      { question: "Как переводится 'Blue'?", options: ['Красный', 'Жёлтый', 'Зелёный', 'Синий'], answer: 3 },
-      { question: "Что означает 'Ten'?", options: ['Семь', 'Восемь', 'Девять', 'Десять'], answer: 3 },
-      { question: "'Green' — это...", options: ['Синий', 'Зелёный', 'Коричневый', 'Серый'], answer: 1 },
-      { question: "Сколько будет 'Three + Four'?", options: ['Five', 'Six', 'Seven', 'Eight'], answer: 2 },
-    ]}
-  },
-  {
-    title: 'Тест: Животные и природа 🌍',
-    type: 'quiz',
-    data: { questions: [
-      { question: "Что значит 'Dog'?", options: ['Кошка', 'Собака', 'Корова', 'Лошадь'], answer: 1 },
-      { question: "Как переводится 'Sun'?", options: ['Луна', 'Звезда', 'Солнце', 'Облако'], answer: 2 },
-      { question: "'River' — это...", options: ['Гора', 'Озеро', 'Река', 'Море'], answer: 2 },
-      { question: "Что означает 'Forest'?", options: ['Пустыня', 'Лес', 'Поле', 'Сад'], answer: 1 },
+      { question: "'Five' канча болот?", options: ['Үч (3)', 'Төрт (4)', 'Беш (5)', 'Алты (6)'], answer: 2 },
+      { question: "'Blue' кайсы түс?", options: ['Кызыл', 'Сары', 'Жашыл', 'Көк / Синий'], answer: 3 },
+      { question: "'Ten' саны кайсы?", options: ['Жети (7)', 'Сегиз (8)', 'Тогуз (9)', 'Он (10)'], answer: 3 },
+      { question: "'Green' түсү кайсы?", options: ['Көк', 'Жашыл / Зелёный', 'Күрөң', 'Боз'], answer: 1 },
+      { question: "'Three + Four' канча болот?", options: ['Five (5)', 'Six (6)', 'Seven (7)', 'Eight (8)'], answer: 2 },
     ]}
   },
 
   // 🎤 Произношение
   {
-    title: 'Произношение: Простые слова 🎤',
+    title: 'Айтуу: Жөнөкөй сөздөр 🎤',
     type: 'pronunciation',
     data: { words: ['hello', 'water', 'apple', 'beautiful', 'morning', 'school', 'friend'] }
   },
   {
-    title: 'Произношение: Числа 🔢',
+    title: 'Айтуу: Сандар 🔢',
     type: 'pronunciation',
     data: { words: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] }
   },
   {
-    title: 'Произношение: Цвета и животные 🌈',
+    title: 'Айтуу: Түстөр жана жаныбарлар 🌈',
     type: 'pronunciation',
     data: { words: ['red', 'blue', 'green', 'yellow', 'cat', 'dog', 'bird', 'fish'] }
   },
@@ -134,10 +124,10 @@ const seedGamesIfNeeded = async () => {
       const countRes = await pool.query('SELECT COUNT(*) FROM games WHERE class_id = $1', [cls.id]);
       const existingCount = parseInt(countRes.rows[0].count, 10);
 
-      // Only seed if class has less than 3 games (fresh class)
+      // Seed if class has less than 3 games
       if (existingCount >= 3) continue;
 
-      console.log(`🌱 Seeding games for class "${cls.name}"...`);
+      console.log(`🌱 Seeding Kyrgyz/Bilingual games for class "${cls.name}"...`);
       for (const game of SAMPLE_GAMES) {
         const exists = await pool.query(
           'SELECT id FROM games WHERE class_id = $1 AND title = $2',

@@ -1,12 +1,26 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { getLang, setLang, t } from '../utils/translations';
 
 export default function Navbar({ role = 'guest' }) {
   const navigate = useNavigate();
+  const [currentLang, setCurrentLang] = useState(getLang());
+
+  useEffect(() => {
+    const handleLangChange = () => setCurrentLang(getLang());
+    window.addEventListener('languageChange', handleLangChange);
+    return () => window.removeEventListener('languageChange', handleLangChange);
+  }, []);
+
+  const toggleLanguage = () => {
+    const nextLang = currentLang === 'kg' ? 'ru' : 'kg';
+    setLang(nextLang);
+  };
 
   const teacherName = (() => {
     try {
-      const t = localStorage.getItem('teacher_data');
-      return t ? JSON.parse(t).name : null;
+      const tData = localStorage.getItem('teacher_data');
+      return tData ? JSON.parse(tData).name : null;
     } catch { return null; }
   })();
 
@@ -36,11 +50,32 @@ export default function Navbar({ role = 'guest' }) {
       </Link>
 
       <div className="navbar-actions">
+        {/* Language Switcher */}
+        <button
+          onClick={toggleLanguage}
+          className="btn btn-secondary btn-sm"
+          style={{
+            background: 'rgba(255,255,255,0.25)',
+            color: '#fff',
+            borderColor: 'rgba(255,255,255,0.4)',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            padding: '4px 10px',
+            borderRadius: '100px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+          title="Тилди алмаштыруу / Сменить язык"
+        >
+          {currentLang === 'kg' ? '🇰🇬 Кыр' : '🇷🇺 Рус'}
+        </button>
+
         {role === 'teacher' && teacherName && (
           <>
             <span className="navbar-user"><i className="ph ph-chalkboard-teacher"></i> {teacherName}</span>
-            <Link to="/admin/dashboard" className="btn btn-ghost btn-sm">Классы</Link>
-            <button className="btn btn-secondary btn-sm" onClick={handleLogout}>Выйти</button>
+            <Link to="/admin/dashboard" className="btn btn-ghost btn-sm" style={{ color: '#fff' }}>{t('classes')}</Link>
+            <button className="btn btn-secondary btn-sm" onClick={handleLogout}>{t('logout')}</button>
           </>
         )}
         {role === 'student' && studentName && (
@@ -50,7 +85,7 @@ export default function Navbar({ role = 'guest' }) {
         )}
         {role === 'guest' && (
           <Link to="/admin/login" className="btn btn-secondary btn-sm">
-            Войти как учитель
+            {t('loginAsTeacher')}
           </Link>
         )}
       </div>

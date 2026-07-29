@@ -7,7 +7,7 @@ import MatchGame from '../components/MatchGame';
 import AnagramGame from '../components/AnagramGame';
 import QuizGame from '../components/QuizGame';
 import PronunciationGame from '../components/PronunciationGame';
-import ActivityChart from '../components/ActivityChart';
+import { t } from '../utils/translations';
 
 export default function Student() {
   const [classData, setClassData] = useState(null);
@@ -17,12 +17,19 @@ export default function Student() {
   const [weeklyActivity, setWeeklyActivity] = useState([]);
   const [activeGame, setActiveGame] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [, setLangTick] = useState(0);
+
+  useEffect(() => {
+    const handleLangChange = () => setLangTick(n => n + 1);
+    window.addEventListener('languageChange', handleLangChange);
+    return () => window.removeEventListener('languageChange', handleLangChange);
+  }, []);
 
   const GAME_CATEGORIES = [
-    { type: 'match_pairs', label: 'Найди пару', emoji: '🃏', xp: '+15 XP', desc: 'Сопоставьте английские слова с их переводом' },
-    { type: 'anagram', label: 'Анаграмма', emoji: '🔤', xp: '+10 XP', desc: 'Соберите правильное слово из перемешанных букв' },
-    { type: 'quiz', label: 'Тест / Квиз', emoji: '📖', xp: '+20 XP', desc: 'Ответьте на вопросы с вариантами ответов' },
-    { type: 'pronunciation', label: 'Произношение', emoji: '🎤', xp: '+25 XP', desc: 'Произносите слова в микрофон и проверяйте себя' },
+    { type: 'match_pairs', label: t('matchPairs'), emoji: '🃏', xp: '+15 XP', desc: t('matchPairsDesc') },
+    { type: 'anagram', label: t('anagram'), emoji: '🔤', xp: '+10 XP', desc: t('anagramDesc') },
+    { type: 'quiz', label: t('quiz'), emoji: '📖', xp: '+20 XP', desc: t('quizDesc') },
+    { type: 'pronunciation', label: t('pronunciation'), emoji: '🎤', xp: '+25 XP', desc: t('pronunciationDesc') },
   ];
   const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'leaderboard'
   const [loading, setLoading] = useState(true);
@@ -103,7 +110,7 @@ export default function Student() {
           <div className="student-hero fade-in">
             <div className="student-hero-left">
               <div className="badge badge-green" style={{ marginBottom: 14 }}>
-                <i className="ph ph-check-circle"></i> Вы в классе
+                <i className="ph ph-check-circle"></i> {t('inClass')}
               </div>
               <h1 style={{ color: '#fff', marginBottom: 6 }}>{classData?.name}</h1>
               {classData?.description && (
@@ -118,14 +125,14 @@ export default function Student() {
               </div>
               <div className="student-hero-info">
                 <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#fff' }}>
-                  Привет, {studentData?.name}! 👋
+                  {t('hello')}, {studentData?.name}! 👋
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', marginTop: 4 }}>
-                  {videos.length} урок{videos.length === 1 ? '' : videos.length < 5 ? 'а' : 'ов'} доступно
+                  {videos.length} {t('lessonsAvailable')}
                 </div>
                 <div className="xp-pill">
                   <i className="ph-fill ph-star"></i>
-                  {leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP
+                  {t('yourRating')}: {leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP
                 </div>
               </div>
             </div>
@@ -134,13 +141,13 @@ export default function Student() {
           {/* Tabs */}
           <div className="cp-tabs" style={{ marginTop: 32 }}>
             <button className={`tab ${tab === 'videos' ? 'active' : ''}`} onClick={() => { setTab('videos'); setActiveGame(null); }}>
-              <i className="ph ph-video"></i> Уроки
+              <i className="ph ph-video"></i> {t('lessons')}
             </button>
             <button className={`tab ${tab === 'games' ? 'active' : ''}`} onClick={() => { setTab('games'); setActiveGame(null); }}>
-              <i className="ph ph-game-controller"></i> Игры
+              <i className="ph ph-game-controller"></i> {t('games')}
             </button>
             <button className={`tab ${tab === 'leaderboard' ? 'active' : ''}`} onClick={() => { setTab('leaderboard'); setActiveGame(null); }}>
-              <i className="ph ph-trophy"></i> Рейтинг
+              <i className="ph ph-trophy"></i> {t('leaderboard')}
             </button>
           </div>
 
@@ -148,15 +155,15 @@ export default function Student() {
           {tab === 'videos' && (
             <div className="fade-in">
               <div className="section-header">
-                <h2><i className="ph ph-video"></i> Видеоуроки</h2>
-                <span className="badge badge-blue">{videos.length} урок{videos.length === 1 ? '' : videos.length < 5 ? 'а' : 'ов'}</span>
+                <h2><i className="ph ph-video"></i> {t('videoLessons')}</h2>
+                <span className="badge badge-blue">{videos.length}</span>
               </div>
 
           {videos.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon"><i className="ph ph-film-strip"></i></div>
-              <h3>Уроков пока нет</h3>
-              <p>Учитель ещё не добавил видеоуроки. Загляни позже!</p>
+              <h3>{t('noLessons')}</h3>
+              <p>{t('teacherNotAdded')}</p>
             </div>
           ) : (
             <div className="grid-3">
@@ -182,8 +189,8 @@ export default function Student() {
                 <div>
                   <div className="section-header" style={{ marginBottom: 24 }}>
                     <div>
-                      <h2><i className="ph ph-game-controller"></i> Категории игр</h2>
-                      <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Выберите раздел игр для обучения</p>
+                      <h2><i className="ph ph-game-controller"></i> {t('gameCategories')}</h2>
+                      <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{t('selectGameCategory')}</p>
                     </div>
                   </div>
 
@@ -242,10 +249,10 @@ export default function Student() {
                             paddingTop: 14, borderTop: '1px solid var(--border)', marginTop: 4
                           }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--tiffany-dark)' }}>
-                              {count} {count === 1 ? 'игра' : count < 5 ? 'игры' : 'игр'}
+                              {count}
                             </span>
                             <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--tiffany)' }}>
-                              Открыть →
+                              {t('open')} →
                             </span>
                           </div>
                         </div>
@@ -267,7 +274,7 @@ export default function Student() {
                           onClick={() => setSelectedCategory(null)}
                           style={{ marginBottom: 20 }}
                         >
-                          <i className="ph ph-arrow-left"></i> Назад к категориям
+                          <i className="ph ph-arrow-left"></i> {t('backToCategories')}
                         </button>
 
                         <div className="section-header" style={{ marginBottom: 24 }}>
@@ -284,8 +291,8 @@ export default function Student() {
                         {catGames.length === 0 ? (
                           <div className="empty-state">
                             <div className="empty-state-icon">{catInfo?.emoji}</div>
-                            <h3>В этой категории пока нет игр</h3>
-                            <p>Учитель скоро добавит игры сюда!</p>
+                            <h3>{t('noGames')}</h3>
+                            <p>{t('teacherWillAddGames')}</p>
                           </div>
                         ) : (
                           <div className="grid-3">
@@ -300,7 +307,7 @@ export default function Student() {
                                   style={{ width: '100%', marginTop: 16 }}
                                   onClick={() => setActiveGame(game)}
                                 >
-                                  <i className="ph-fill ph-play"></i> Играть
+                                  <i className="ph-fill ph-play"></i> {t('play')}
                                 </button>
                               </div>
                             ))}

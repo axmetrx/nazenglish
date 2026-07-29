@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentsAPI } from '../api/api';
 import Navbar from '../components/Navbar';
+import { t } from '../utils/translations';
 
 export default function Home() {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [, setLangTick] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,10 +18,16 @@ export default function Home() {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    const handleLangChange = () => setLangTick(n => n + 1);
+    window.addEventListener('languageChange', handleLangChange);
+    return () => window.removeEventListener('languageChange', handleLangChange);
+  }, []);
+
   const handleJoin = async (e) => {
     e.preventDefault();
     if (!name.trim() || !code.trim()) {
-      setError('Введите имя и код класса');
+      setError('Атыңызды жана кодду киргизиңиз / Введите имя и код класса');
       return;
     }
     setLoading(true);
@@ -31,7 +39,7 @@ export default function Home() {
       localStorage.setItem('student_data', JSON.stringify({ ...student, className: cls.name }));
       navigate('/student');
     } catch (err) {
-      setError(err.response?.data?.message || 'Ошибка входа. Проверьте код класса.');
+      setError(err.response?.data?.message || 'Ошибка входа / Кирүү катасы. Кодду текшериңиз.');
     } finally {
       setLoading(false);
     }
@@ -45,21 +53,21 @@ export default function Home() {
           {/* Hero left */}
           <div className="home-hero">
             <div className="home-badge badge badge-purple">
-              <i className="ph ph-graduation-cap"></i> Онлайн обучение
+              <i className="ph ph-graduation-cap"></i> Англис тили / Английский язык
             </div>
             <h1>
-              Учи английский<br />
-              <span className="gradient-text">с лучшим учителем</span>
+              Англис тилин үйрөнүңүз<br />
+              <span className="gradient-text">Nazenglish менен</span>
             </h1>
             <p className="home-sub">
-              Вводи код класса, который дал тебе учитель, и получай мгновенный доступ к видеоурокам.
+              Мугалим берген кодду киргизип, видео сабакдарга жана оюндарга дароо кириңиз.
             </p>
 
             <div className="home-features">
               {[
-                { icon: <i className="ph ph-video"></i>, text: 'Видеоуроки в удобное время' },
-                { icon: <i className="ph ph-device-mobile"></i>, text: 'Работает на любом устройстве' },
-                { icon: <i className="ph ph-lightning"></i>, text: 'Быстрый доступ по коду' },
+                { icon: <i className="ph ph-video"></i>, text: 'Видео сабактар жана интерактивдүү оюндар' },
+                { icon: <i className="ph ph-device-mobile"></i>, text: 'Телефондо жана компьютерде иштейт' },
+                { icon: <i className="ph ph-lightning"></i>, text: 'Код аркылуу тез кирүү' },
               ].map((f, i) => (
                 <div key={i} className="home-feature">
                   <span>{f.icon}</span>
@@ -72,18 +80,18 @@ export default function Home() {
           {/* Login card right */}
           <div className="home-card card slide-up">
             <div className="home-card-header">
-              <h2>Войти в класс</h2>
-              <p>Введите своё имя и код, который дал вам учитель</p>
+              <h2>{t('joinClass')}</h2>
+              <p>{t('enterCode')} жана {t('enterName')}</p>
             </div>
 
             <form onSubmit={handleJoin} className="modal-form">
               <div className="form-group">
-                <label className="form-label">Ваше имя</label>
+                <label className="form-label">{t('enterName')}</label>
                 <input
                   id="student-name"
                   className="form-input"
                   type="text"
-                  placeholder="Например: Айгерим Сейткали"
+                  placeholder="Мисалы: Айгүл Бакыт кызы"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   autoComplete="off"
@@ -91,7 +99,7 @@ export default function Home() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Код класса</label>
+                <label className="form-label">{t('enterCode')}</label>
                 <input
                   id="class-code"
                   className="form-input code-input"
@@ -99,7 +107,7 @@ export default function Home() {
                   placeholder="ABC123"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  maxLength={6}
+                  maxLength={10}
                   autoComplete="off"
                 />
               </div>
@@ -109,46 +117,14 @@ export default function Home() {
               <button
                 id="join-btn"
                 type="submit"
-                className="btn btn-primary btn-lg btn-full"
+                className="btn btn-primary btn-full btn-lg"
                 disabled={loading}
               >
-                {loading ? (
-                  <><div className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /> Вхожу...</>
-                ) : (
-                  <><i className="ph ph-rocket"></i> Войти в класс</>
-                )}
+                {loading ? 'Кирүүдө...' : <><i className="ph ph-sign-in"></i> {t('joinClass')}</>}
               </button>
             </form>
           </div>
         </div>
-
-        <style>{`
-          .home-wrapper {
-            display: grid;
-            grid-template-columns: 1fr 420px;
-            gap: 60px;
-            align-items: center;
-            max-width: 1000px;
-            width: 100%;
-            padding: 24px;
-          }
-          .home-hero { display: flex; flex-direction: column; gap: 24px; }
-          .home-badge { align-self: flex-start; font-size: 0.85rem; }
-          .home-sub { font-size: 1.1rem; color: var(--text-secondary); max-width: 440px; line-height: 1.7; }
-          .home-features { display: flex; flex-direction: column; gap: 12px; }
-          .home-feature {
-            display: flex; align-items: center; gap: 12px;
-            color: var(--text-secondary); font-size: 0.95rem;
-          }
-          .home-feature span:first-child { font-size: 1.2rem; }
-          .home-card { padding: 36px; }
-          .home-card-header { margin-bottom: 28px; }
-          .home-card-header h2 { margin-bottom: 8px; }
-          @media (max-width: 900px) {
-            .home-wrapper { grid-template-columns: 1fr; gap: 32px; }
-            .home-hero { text-align: center; align-items: center; }
-          }
-        `}</style>
       </div>
     </>
   );

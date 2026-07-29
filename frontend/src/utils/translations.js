@@ -1,0 +1,120 @@
+export const translations = {
+  ru: {
+    brand: "Nazenglish",
+    inClass: "Вы в классе",
+    hello: "Привет",
+    lessonsAvailable: "урок(а/ов) доступно",
+    yourRating: "Ваш рейтинг",
+    lessons: "Уроки",
+    games: "Игры",
+    leaderboard: "Рейтинг",
+    videoLessons: "Видеоуроки",
+    noLessons: "Уроков пока нет",
+    teacherNotAdded: "Учитель ещё не добавил видеоуроки. Загляни позже!",
+    interactiveGames: "Интерактивные игры",
+    gameCategories: "Категории игр",
+    selectGameCategory: "Выберите раздел игр для обучения",
+    noGames: "Игр пока нет",
+    teacherWillAddGames: "Учитель скоро добавит новые игры!",
+    backToCategories: "Назад к категориям",
+    classLeaderboard: "Рейтинг класса",
+    loginAsTeacher: "Войти как учитель",
+    classes: "Классы",
+    logout: "Выйти",
+    play: "Играть",
+    open: "Открыть",
+    watch: "Смотреть",
+    watchLesson: "Смотреть урок",
+    correct: "Правильно!",
+    wrong: "Не верно, попробуй снова!",
+    finished: "Отлично!",
+    pointsEarned: "XP получено!",
+    listen: "Прослушать",
+    wordToGuess: "Слово для угадывания",
+    wordToPronounce: "Слово для произношения",
+    question: "ВОПРОС",
+    pronounceWord: "ПРОИЗНЕСИТЕ СЛОВО",
+    listening: "Слушаю...",
+    clickMicToSpeak: "Нажмите на микрофон и произнесите слово",
+    skipWord: "Пропустить слово",
+    // Categories
+    matchPairs: "Найди пару",
+    matchPairsDesc: "Сопоставьте английские слова с их переводом",
+    anagram: "Анаграмма",
+    anagramDesc: "Соберите правильное слово из перемешанных букв",
+    quiz: "Тест / Квиз",
+    quizDesc: "Ответьте на вопросы с вариантами ответов",
+    pronunciation: "Произношение",
+    pronunciationDesc: "Произносите слова в микрофон и проверяйте себя",
+    // Home/Login/Guest
+    joinClass: "Войти в класс",
+    enterCode: "Введите код класса",
+    enterName: "Ваше имя",
+  },
+  kg: {
+    brand: "Nazenglish",
+    inClass: "Сиз класстасыз",
+    hello: "Салам",
+    lessonsAvailable: "сабак бар",
+    yourRating: "Сиздин рейтингиңиз",
+    lessons: "Сабактар",
+    games: "Оюндар",
+    leaderboard: "Рейтинг",
+    videoLessons: "Видео сабактар",
+    noLessons: "Сабактар азырынча жок",
+    teacherNotAdded: "Мугалим азырынча видео сабак кошо элек. Кийинчерээк кириңиз!",
+    interactiveGames: "Интерактивдүү оюндар",
+    gameCategories: "Оюндардын категориялары",
+    selectGameCategory: "Окуу үчүн оюн бөлүмүн тандаңыз",
+    noGames: "Оюндар азырынча жок",
+    teacherWillAddGames: "Мугалим жакында жаңы оюндарды кошот!",
+    backToCategories: "Категорияларга кайтуу",
+    classLeaderboard: "Класстын рейтинги",
+    loginAsTeacher: "Мугалим катары кирүү",
+    classes: "Классдар",
+    logout: "Чыгуу",
+    play: "Ойноо",
+    open: "Ачуу",
+    watch: "Көрүү",
+    watchLesson: "Сабакты көрүү",
+    correct: "Туура!",
+    wrong: "Ката, кайра аракет кылыңыз!",
+    finished: "Азаматсыз!",
+    pointsEarned: "XP алынды!",
+    listen: "Угуу",
+    wordToGuess: "Табыла турган сөз",
+    wordToPronounce: "Айтыла турган сөз",
+    question: "СУРОО",
+    pronounceWord: "СӨЗДҮ АЙТЫҢЫЗ",
+    listening: "Угуп жатам...",
+    clickMicToSpeak: "Микрофонду басып сөздү айтыңыз",
+    skipWord: "Сөздү өткөрүп жиберүү",
+    // Categories
+    matchPairs: "Жубун тап",
+    matchPairsDesc: "Англисче сөздөрдү котормосу менен дал келтириңиз",
+    anagram: "Анаграмма",
+    anagramDesc: "Тамгалардан туура сөздү кураштырыңыз",
+    quiz: "Тест / Квиз",
+    quizDesc: "Суроолорго туура жоопту тандаңыз",
+    pronunciation: "Туура айтуу",
+    pronunciationDesc: "Микрофонго сөздөрдү айтып өзүңүздү текшериңиз",
+    // Home/Login/Guest
+    joinClass: "Класска кирүү",
+    enterCode: "Класс кодун киргизиңиз",
+    enterName: "Атыңызды жазыңыз",
+  }
+};
+
+export const getLang = () => {
+  return localStorage.getItem('app_lang') || 'kg';
+};
+
+export const setLang = (lang) => {
+  localStorage.setItem('app_lang', lang);
+  window.dispatchEvent(new Event('languageChange'));
+};
+
+export const t = (key) => {
+  const lang = getLang();
+  return translations[lang]?.[key] || translations['ru']?.[key] || key;
+};
