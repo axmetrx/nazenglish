@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { initDB } = require('./db');
+const { seedGamesIfNeeded } = require('./seed_games');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -39,6 +40,7 @@ app.use((err, req, res, next) => {
 // ─── Start ───────────────────────────────────────────────────
 const startServer = async () => {
   await initDB();
+  await seedGamesIfNeeded();
   app.listen(PORT, () => {
     console.log(`\n🎓 EnglishClass API Server`);
     console.log(`✅ Running on http://localhost:${PORT}`);
