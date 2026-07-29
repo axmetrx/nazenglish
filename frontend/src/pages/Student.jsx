@@ -15,10 +15,9 @@ export default function Student() {
   const [games, setGames] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [weeklyActivity, setWeeklyActivity] = useState([]);
-  const [gameCategory, setGameCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
-  const GAME_TYPES = [
-    { type: 'all', label: 'Все игры', emoji: '🌟' },
+  const GAME_CATEGORIES = [
     { type: 'match_pairs', label: 'Найди пару', emoji: '🃏', xp: '+15 XP', desc: 'Сопоставьте английские слова с их переводом' },
     { type: 'anagram', label: 'Анаграмма', emoji: '🔤', xp: '+10 XP', desc: 'Соберите правильное слово из перемешанных букв' },
     { type: 'quiz', label: 'Тест / Квиз', emoji: '📖', xp: '+20 XP', desc: 'Ответьте на вопросы с вариантами ответов' },
@@ -177,113 +176,138 @@ export default function Student() {
           {/* Games Tab */}
           {tab === 'games' && !activeGame && (
             <div className="fade-in">
-              <div className="section-header" style={{ marginBottom: 20 }}>
+              {/* Level 1: Category Folders */}
+              {!selectedCategory ? (
                 <div>
-                  <h2><i className="ph ph-game-controller"></i> Интерактивные игры</h2>
-                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Выберите категорию и учите английский весело!</p>
-                </div>
-              </div>
+                  <div className="section-header" style={{ marginBottom: 24 }}>
+                    <div>
+                      <h2><i className="ph ph-game-controller"></i> Категории игр</h2>
+                      <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Выберите раздел игр для обучения</p>
+                    </div>
+                  </div>
 
-              {/* Category Filter Chips */}
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 32 }}>
-                {GAME_TYPES.map(cat => {
-                  const count = cat.type === 'all'
-                    ? games.length
-                    : games.filter(g => g.type === cat.type).length;
-                  const isActive = gameCategory === cat.type;
-                  return (
-                    <button
-                      key={cat.type}
-                      onClick={() => setGameCategory(cat.type)}
-                      className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                      style={{
-                        borderRadius: 100,
-                        padding: '8px 18px',
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}
-                    >
-                      <span>{cat.emoji}</span>
-                      <span>{cat.label}</span>
-                      <span style={{
-                        background: isActive ? 'rgba(255,255,255,0.3)' : 'var(--bg-tertiary)',
-                        color: isActive ? '#fff' : 'var(--tiffany-dark)',
-                        padding: '2px 8px',
-                        borderRadius: 100,
-                        fontSize: '0.78rem'
-                      }}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {games.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon"><i className="ph ph-game-controller"></i></div>
-                  <h3>Игр пока нет</h3>
-                  <p>Учитель скоро добавит новые игры!</p>
-                </div>
-              ) : (
-                <div>
-                  {GAME_TYPES.filter(cat => cat.type !== 'all').map(cat => {
-                    if (gameCategory !== 'all' && gameCategory !== cat.type) return null;
-                    const catGames = games.filter(g => g.type === cat.type);
-                    if (catGames.length === 0 && gameCategory === cat.type) {
+                  <div className="grid-2">
+                    {GAME_CATEGORIES.map(cat => {
+                      const count = games.filter(g => g.type === cat.type).length;
                       return (
-                        <div key={cat.type} className="empty-state">
-                          <div className="empty-state-icon">{cat.emoji}</div>
-                          <h3>В категории "{cat.label}" пока нет игр</h3>
-                          <p>Загляните позже!</p>
+                        <div
+                          key={cat.type}
+                          className="card slide-up"
+                          onClick={() => setSelectedCategory(cat.type)}
+                          style={{
+                            padding: '24px 28px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justify: 'space-between',
+                            gap: 16,
+                            border: '1.5px solid var(--border)',
+                            transition: 'all 0.25s ease',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = 'var(--tiffany)';
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(10,186,181,0.18)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.transform = 'none';
+                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{
+                              width: 56, height: 56, borderRadius: 16,
+                              background: 'var(--tiffany-xlight)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '1.8rem', border: '1px solid var(--border)'
+                            }}>
+                              {cat.emoji}
+                            </div>
+                            <span className="badge badge-purple" style={{ fontSize: '0.85rem' }}>{cat.xp}</span>
+                          </div>
+
+                          <div>
+                            <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                              {cat.label}
+                            </h3>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                              {cat.desc}
+                            </p>
+                          </div>
+
+                          <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            paddingTop: 14, borderTop: '1px solid var(--border)', marginTop: 4
+                          }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--tiffany-dark)' }}>
+                              {count} {count === 1 ? 'игра' : count < 5 ? 'игры' : 'игр'}
+                            </span>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--tiffany)' }}>
+                              Открыть →
+                            </span>
+                          </div>
                         </div>
                       );
-                    }
-                    if (catGames.length === 0) return null;
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* Level 2: Games inside selected category */
+                <div>
+                  {(() => {
+                    const catInfo = GAME_CATEGORIES.find(c => c.type === selectedCategory);
+                    const catGames = games.filter(g => g.type === selectedCategory);
 
                     return (
-                      <div key={cat.type} style={{ marginBottom: 40 }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justify-content: 'space-between',
-                          marginBottom: 16,
-                          paddingBottom: 10,
-                          borderBottom: '2px solid var(--border)'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <span style={{ fontSize: '1.5rem' }}>{cat.emoji}</span>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>{cat.label}</h3>
-                            <span className="badge badge-purple">{cat.xp}</span>
+                      <div>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setSelectedCategory(null)}
+                          style={{ marginBottom: 20 }}
+                        >
+                          <i className="ph ph-arrow-left"></i> Назад к категориям
+                        </button>
+
+                        <div className="section-header" style={{ marginBottom: 24 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                              <span style={{ fontSize: '1.8rem' }}>{catInfo?.emoji}</span>
+                              <h2 style={{ margin: 0 }}>{catInfo?.label}</h2>
+                              <span className="badge badge-purple">{catInfo?.xp}</span>
+                            </div>
+                            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{catInfo?.desc}</p>
                           </div>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            {catGames.length} {catGames.length === 1 ? 'игра' : catGames.length < 5 ? 'игры' : 'игр'}
-                          </span>
                         </div>
 
-                        <div className="grid-3">
-                          {catGames.map((game) => (
-                            <div key={game.id} className="card slide-up" style={{ padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                              <div>
-                                <div className="badge badge-purple" style={{ marginBottom: 10, display: 'inline-flex' }}>{cat.emoji} {cat.label}</div>
-                                <h3 style={{ fontSize: '1.2rem', marginBottom: 12, color: 'var(--text-primary)' }}>{game.title}</h3>
+                        {catGames.length === 0 ? (
+                          <div className="empty-state">
+                            <div className="empty-state-icon">{catInfo?.emoji}</div>
+                            <h3>В этой категории пока нет игр</h3>
+                            <p>Учитель скоро добавит игры сюда!</p>
+                          </div>
+                        ) : (
+                          <div className="grid-3">
+                            {catGames.map((game) => (
+                              <div key={game.id} className="card slide-up" style={{ padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                <div>
+                                  <div className="badge badge-purple" style={{ marginBottom: 12, display: 'inline-flex' }}>{catInfo?.emoji} {catInfo?.label}</div>
+                                  <h3 style={{ fontSize: '1.25rem', marginBottom: 12, color: 'var(--text-primary)' }}>{game.title}</h3>
+                                </div>
+                                <button
+                                  className="btn btn-primary"
+                                  style={{ width: '100%', marginTop: 16 }}
+                                  onClick={() => setActiveGame(game)}
+                                >
+                                  <i className="ph-fill ph-play"></i> Играть
+                                </button>
                               </div>
-                              <button
-                                className="btn btn-primary"
-                                style={{ width: '100%', marginTop: 12 }}
-                                onClick={() => setActiveGame(game)}
-                              >
-                                <i className="ph-fill ph-play"></i> Играть
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
               )}
             </div>
