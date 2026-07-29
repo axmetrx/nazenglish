@@ -15,7 +15,15 @@ export default function Student() {
   const [games, setGames] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [weeklyActivity, setWeeklyActivity] = useState([]);
-  const [activeGame, setActiveGame] = useState(null);
+  const [gameCategory, setGameCategory] = useState('all');
+
+  const GAME_TYPES = [
+    { type: 'all', label: 'Все игры', emoji: '🌟' },
+    { type: 'match_pairs', label: 'Найди пару', emoji: '🃏', xp: '+15 XP', desc: 'Сопоставьте английские слова с их переводом' },
+    { type: 'anagram', label: 'Анаграмма', emoji: '🔤', xp: '+10 XP', desc: 'Соберите правильное слово из перемешанных букв' },
+    { type: 'quiz', label: 'Тест / Квиз', emoji: '📖', xp: '+20 XP', desc: 'Ответьте на вопросы с вариантами ответов' },
+    { type: 'pronunciation', label: 'Произношение', emoji: '🎤', xp: '+25 XP', desc: 'Произносите слова в микрофон и проверяйте себя' },
+  ];
   const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'leaderboard'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -169,9 +177,51 @@ export default function Student() {
           {/* Games Tab */}
           {tab === 'games' && !activeGame && (
             <div className="fade-in">
-              <div className="section-header">
-                <h2><i className="ph ph-game-controller"></i> Интерактивные игры</h2>
+              <div className="section-header" style={{ marginBottom: 20 }}>
+                <div>
+                  <h2><i className="ph ph-game-controller"></i> Интерактивные игры</h2>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Выберите категорию и учите английский весело!</p>
+                </div>
               </div>
+
+              {/* Category Filter Chips */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 32 }}>
+                {GAME_TYPES.map(cat => {
+                  const count = cat.type === 'all'
+                    ? games.length
+                    : games.filter(g => g.type === cat.type).length;
+                  const isActive = gameCategory === cat.type;
+                  return (
+                    <button
+                      key={cat.type}
+                      onClick={() => setGameCategory(cat.type)}
+                      className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      style={{
+                        borderRadius: 100,
+                        padding: '8px 18px',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                    >
+                      <span>{cat.emoji}</span>
+                      <span>{cat.label}</span>
+                      <span style={{
+                        background: isActive ? 'rgba(255,255,255,0.3)' : 'var(--bg-tertiary)',
+                        color: isActive ? '#fff' : 'var(--tiffany-dark)',
+                        padding: '2px 8px',
+                        borderRadius: 100,
+                        fontSize: '0.78rem'
+                      }}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {games.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon"><i className="ph ph-game-controller"></i></div>
@@ -179,27 +229,58 @@ export default function Student() {
                   <p>Учитель скоро добавит новые игры!</p>
                 </div>
               ) : (
-                <div className="grid-3">
-                  {games.map((game) => {
-                    const typeLabels = {
-                      match_pairs: { label: '🃏 Найди пару', xp: '+15 XP' },
-                      anagram:     { label: '🔤 Анаграмма',  xp: '+10 XP' },
-                      quiz:        { label: '📖 Тест/Квиз',  xp: '+20 XP' },
-                      pronunciation: { label: '🎤 Произношение', xp: '+25 XP' },
-                    };
-                    const info = typeLabels[game.type] || { label: '🎮 Игра', xp: '+10 XP' };
+                <div>
+                  {GAME_TYPES.filter(cat => cat.type !== 'all').map(cat => {
+                    if (gameCategory !== 'all' && gameCategory !== cat.type) return null;
+                    const catGames = games.filter(g => g.type === cat.type);
+                    if (catGames.length === 0 && gameCategory === cat.type) {
+                      return (
+                        <div key={cat.type} className="empty-state">
+                          <div className="empty-state-icon">{cat.emoji}</div>
+                          <h3>В категории "{cat.label}" пока нет игр</h3>
+                          <p>Загляните позже!</p>
+                        </div>
+                      );
+                    }
+                    if (catGames.length === 0) return null;
+
                     return (
-                      <div key={game.id} className="card slide-up" style={{ padding: 20, textAlign: 'center' }}>
-                        <div className="badge badge-purple" style={{ marginBottom: 8, display: 'inline-flex' }}>{info.label}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--tiffany)', fontWeight: 600, marginBottom: 12 }}>{info.xp}</div>
-                        <h3 style={{ fontSize: '1.2rem', marginBottom: 16 }}>{game.title}</h3>
-                        <button
-                          className="btn btn-primary"
-                          style={{ width: '100%' }}
-                          onClick={() => setActiveGame(game)}
-                        >
-                          <i className="ph-fill ph-play"></i> Играть
-                        </button>
+                      <div key={cat.type} style={{ marginBottom: 40 }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justify-content: 'space-between',
+                          marginBottom: 16,
+                          paddingBottom: 10,
+                          borderBottom: '2px solid var(--border)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: '1.5rem' }}>{cat.emoji}</span>
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>{cat.label}</h3>
+                            <span className="badge badge-purple">{cat.xp}</span>
+                          </div>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            {catGames.length} {catGames.length === 1 ? 'игра' : catGames.length < 5 ? 'игры' : 'игр'}
+                          </span>
+                        </div>
+
+                        <div className="grid-3">
+                          {catGames.map((game) => (
+                            <div key={game.id} className="card slide-up" style={{ padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                              <div>
+                                <div className="badge badge-purple" style={{ marginBottom: 10, display: 'inline-flex' }}>{cat.emoji} {cat.label}</div>
+                                <h3 style={{ fontSize: '1.2rem', marginBottom: 12, color: 'var(--text-primary)' }}>{game.title}</h3>
+                              </div>
+                              <button
+                                className="btn btn-primary"
+                                style={{ width: '100%', marginTop: 12 }}
+                                onClick={() => setActiveGame(game)}
+                              >
+                                <i className="ph-fill ph-play"></i> Играть
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
