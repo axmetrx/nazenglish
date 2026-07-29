@@ -24,15 +24,25 @@ function getEmbedUrl(url) {
   match = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (match) return `https://drive.google.com/file/d/${match[1]}/preview`;
 
-  // Если уже embed ссылка
-  if (url.includes('youtube.com/embed') || url.includes('player.vimeo.com') || url.includes('t.me/') && url.includes('embed=') || url.includes('drive.google.com') && url.includes('preview')) return url;
+  if (url.includes('youtube.com/embed') || url.includes('player.vimeo.com') || (url.includes('t.me/') && url.includes('embed=')) || (url.includes('drive.google.com') && url.includes('preview'))) return url;
 
-  return null; // Внешняя ссылка
+  return null;
+}
+
+// Get YouTube thumbnail
+function getYoutubeThumbnail(url) {
+  if (!url) return null;
+  let match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
+  if (match) return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+  match = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
+  if (match) return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`;
+  return null;
 }
 
 export default function VideoCard({ video, index, showActions, onEdit, onDelete, onPlay }) {
   const [playing, setPlaying] = useState(false);
   const embedUrl = getEmbedUrl(video.url);
+  const thumbnail = getYoutubeThumbnail(video.url);
 
   const handlePlay = () => {
     if (onPlay && !playing) onPlay();
@@ -40,112 +50,260 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
   };
 
   return (
-    <div className="video-card card slide-up" style={{ animationDelay: `${index * 0.07}s` }}>
-      {/* Player / Thumbnail */}
-      <div className="video-thumbnail" onClick={() => {
-        if (embedUrl && !playing) handlePlay();
-        else if (!embedUrl) {
-          if (onPlay) onPlay();
-          window.open(video.url, '_blank');
-        }
-      }}>
+    <div className="vc-card slide-up" style={{ animationDelay: `${index * 0.07}s` }}>
+      {/* Thumbnail / Player */}
+      <div
+        className="vc-thumb"
+        onClick={() => {
+          if (embedUrl && !playing) handlePlay();
+          else if (!embedUrl) { if (onPlay) onPlay(); window.open(video.url, '_blank'); }
+        }}
+      >
         {playing && embedUrl ? (
-          <div className="video-embed">
-            <iframe
-              src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
-              title={video.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              scrolling="no"
-              style={{ width: '100%', height: '100%', border: 'none', overflow: 'hidden' }}
-            />
-          </div>
+          <iframe
+            src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+            title={video.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+          />
         ) : (
-          <div className="video-preview">
-            <div className="play-btn-outer">
-              <div className="play-btn">
-                {embedUrl ? <i className="ph-fill ph-play-circle"></i> : <i className="ph-fill ph-link"></i>}
-              </div>
+          <>
+            {/* Background: YouTube thumbnail or gradient */}
+            {thumbnail ? (
+              <img src={thumbnail} alt={video.title} className="vc-bg-img" />
+            ) : (
+              <div className="vc-bg-gradient" />
+            )}
+            {/* Overlay */}
+            <div className="vc-overlay" />
+            {/* Lesson badge */}
+            <div className="vc-badge">
+              <i className="ph ph-video"></i> Урок {index + 1}
             </div>
-            <div className="video-number">#{index + 1}</div>
-          </div>
+            {/* Play button */}
+            <div className="vc-play-wrap">
+              <div className="vc-play-btn">
+                {embedUrl
+                  ? <i className="ph-fill ph-play"></i>
+                  : <i className="ph-fill ph-arrow-square-out"></i>}
+              </div>
+              <span className="vc-play-label">{embedUrl ? 'Смотреть' : 'Открыть'}</span>
+            </div>
+            {/* Duration shimmer */}
+            <div className="vc-duration">
+              <i className="ph ph-film-strip"></i> Видео
+            </div>
+          </>
         )}
       </div>
 
       {/* Info */}
-      <div className="video-info">
-        <div className="video-meta">
-          <span className="badge badge-purple">Урок {index + 1}</span>
-        </div>
-        <h3 className="video-title">{video.title}</h3>
+      <div className="vc-info">
+        <h3 className="vc-title">{video.title}</h3>
         {video.description && (
-          <p className="video-desc">{video.description}</p>
+          <p className="vc-desc">{video.description}</p>
+        )}
+        {!playing && (
+          <button className="vc-btn" onClick={handlePlay}>
+            <i className="ph-fill ph-play-circle"></i> Смотреть урок
+          </button>
         )}
       </div>
 
       {/* Teacher actions */}
       {showActions && (
-        <div className="video-actions">
-          <button className="btn btn-ghost btn-sm" onClick={() => onEdit(video)} title="Редактировать"><i className="ph ph-pencil-simple"></i></button>
-          <button className="btn btn-danger btn-sm" onClick={() => onDelete(video.id)} title="Удалить"><i className="ph ph-trash"></i></button>
+        <div className="vc-actions">
+          <button className="vc-act-btn edit" onClick={() => onEdit(video)} title="Редактировать">
+            <i className="ph ph-pencil-simple"></i>
+          </button>
+          <button className="vc-act-btn del" onClick={() => onDelete(video.id)} title="Удалить">
+            <i className="ph ph-trash"></i>
+          </button>
         </div>
       )}
 
       <style>{`
-        .video-card { position: relative; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-        .video-thumbnail { cursor: pointer; border-bottom: 1px solid var(--border); overflow: hidden; }
-        .video-embed iframe {
-          width: 100%;
-          aspect-ratio: 16/9;
-          border: none;
-          display: block;
-        }
-        .video-preview {
-          width: 100%;
-          aspect-ratio: 16/9;
-          background: var(--bg-secondary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .vc-card {
           position: relative;
-          transition: background var(--transition);
-        }
-        .video-preview:hover { background: var(--border); }
-        .play-btn-outer {
-          width: 64px; height: 64px;
-          border-radius: 50%;
+          border-radius: 18px;
+          overflow: hidden;
           background: #fff;
-          display: flex; align-items: center; justify-content: center;
           border: 1px solid var(--border);
           box-shadow: var(--shadow-sm);
-          transition: all var(--transition);
+          display: flex;
+          flex-direction: column;
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         }
-        .video-preview:hover .play-btn-outer {
-          transform: scale(1.05);
-          box-shadow: var(--shadow);
+        .vc-card:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-lg);
+          border-color: var(--tiffany);
         }
-        .play-btn { font-size: 1.5rem; color: var(--accent); margin-left: 4px; }
-        .video-number {
+
+        /* Thumbnail area */
+        .vc-thumb {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 16/9;
+          overflow: hidden;
+          cursor: pointer;
+          background: var(--bg-tertiary);
+        }
+        .vc-bg-img {
+          position: absolute; inset: 0;
+          width: 100%; height: 100%;
+          object-fit: cover;
+          transition: transform 0.4s ease;
+        }
+        .vc-card:hover .vc-bg-img { transform: scale(1.05); }
+        .vc-bg-gradient {
+          position: absolute; inset: 0;
+          background: linear-gradient(135deg, var(--tiffany) 0%, var(--tiffany-darker) 100%);
+        }
+        .vc-overlay {
+          position: absolute; inset: 0;
+          background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 60%, transparent 100%);
+          transition: background 0.3s ease;
+        }
+        .vc-card:hover .vc-overlay {
+          background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 60%, transparent 100%);
+        }
+
+        /* Lesson badge top-left */
+        .vc-badge {
           position: absolute; top: 12px; left: 12px;
-          background: #fff; color: var(--text-primary);
-          padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
-          border: 1px solid var(--border);
-          box-shadow: var(--shadow-sm);
+          background: rgba(255,255,255,0.92);
+          backdrop-filter: blur(6px);
+          color: var(--tiffany-dark);
+          font-size: 0.75rem; font-weight: 700;
+          padding: 4px 10px; border-radius: 100px;
+          display: flex; align-items: center; gap: 4px;
+          border: 1px solid rgba(255,255,255,0.6);
         }
-        .video-info {
-          padding: 20px;
-          display: flex; flex-direction: column; gap: 12px;
+
+        /* Duration bottom-right */
+        .vc-duration {
+          position: absolute; bottom: 10px; right: 12px;
+          color: rgba(255,255,255,0.85);
+          font-size: 0.72rem; font-weight: 500;
+          display: flex; align-items: center; gap: 4px;
+        }
+
+        /* Play button center */
+        .vc-play-wrap {
+          position: absolute; inset: 0;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          gap: 10px;
+          transition: opacity 0.2s;
+        }
+        .vc-play-btn {
+          width: 60px; height: 60px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.95);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 1.6rem;
+          color: var(--tiffany);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+          padding-left: 3px;
+        }
+        .vc-card:hover .vc-play-btn {
+          transform: scale(1.12);
+          box-shadow: 0 6px 28px rgba(10,186,181,0.45);
+        }
+        .vc-play-label {
+          color: #fff;
+          font-size: 0.82rem;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+          opacity: 0;
+          transform: translateY(6px);
+          transition: all 0.25s ease;
+          text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+        .vc-card:hover .vc-play-label {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        /* Info section */
+        .vc-info {
+          padding: 18px 20px 20px;
+          display: flex; flex-direction: column; gap: 8px;
           flex: 1;
         }
-        .video-meta { display: flex; gap: 8px; align-items: center; }
-        .video-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
-        .video-desc { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
-        .video-actions {
-          position: absolute; top: 12px; right: 12px;
-          display: flex; gap: 6px;
-          opacity: 0; transition: opacity var(--transition);
+        .vc-title {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
-        .video-card:hover .video-actions { opacity: 1; }
+        .vc-desc {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .vc-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 4px;
+          padding: 8px 16px;
+          background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
+          color: #fff;
+          border: none;
+          border-radius: 10px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          font-family: inherit;
+          cursor: pointer;
+          transition: all 0.2s;
+          width: fit-content;
+          box-shadow: 0 2px 10px rgba(10,186,181,0.3);
+        }
+        .vc-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 16px rgba(10,186,181,0.45);
+        }
+
+        /* Teacher action buttons */
+        .vc-actions {
+          position: absolute; top: 10px; right: 10px;
+          display: flex; gap: 6px;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        .vc-card:hover .vc-actions { opacity: 1; }
+        .vc-act-btn {
+          width: 34px; height: 34px;
+          border-radius: 50%;
+          border: none;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 0.95rem;
+          cursor: pointer;
+          backdrop-filter: blur(8px);
+          transition: all 0.2s;
+        }
+        .vc-act-btn.edit {
+          background: rgba(255,255,255,0.9);
+          color: var(--tiffany-dark);
+        }
+        .vc-act-btn.edit:hover { background: var(--tiffany-xlight); }
+        .vc-act-btn.del {
+          background: rgba(255,255,255,0.9);
+          color: var(--danger);
+        }
+        .vc-act-btn.del:hover { background: var(--danger-light); }
       `}</style>
     </div>
   );
