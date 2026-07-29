@@ -4,6 +4,9 @@ import { studentsAPI, gamesAPI } from '../api/api';
 import VideoCard from '../components/VideoCard';
 import Navbar from '../components/Navbar';
 import MatchGame from '../components/MatchGame';
+import AnagramGame from '../components/AnagramGame';
+import QuizGame from '../components/QuizGame';
+import PronunciationGame from '../components/PronunciationGame';
 import ActivityChart from '../components/ActivityChart';
 
 export default function Student() {
@@ -177,19 +180,29 @@ export default function Student() {
                 </div>
               ) : (
                 <div className="grid-3">
-                  {games.map((game) => (
-                    <div key={game.id} className="card slide-up" style={{ padding: 20, textAlign: 'center' }}>
-                      <div className="badge badge-purple" style={{ marginBottom: 12, display: 'inline-flex' }}>Найди пару</div>
-                      <h3 style={{ fontSize: '1.2rem', marginBottom: 16 }}>{game.title}</h3>
-                      <button 
-                        className="btn btn-primary" 
-                        style={{ width: '100%' }}
-                        onClick={() => setActiveGame(game)}
-                      >
-                        <i className="ph-fill ph-play"></i> Играть
-                      </button>
-                    </div>
-                  ))}
+                  {games.map((game) => {
+                    const typeLabels = {
+                      match_pairs: { label: '🃏 Найди пару', xp: '+15 XP' },
+                      anagram:     { label: '🔤 Анаграмма',  xp: '+10 XP' },
+                      quiz:        { label: '📖 Тест/Квиз',  xp: '+20 XP' },
+                      pronunciation: { label: '🎤 Произношение', xp: '+25 XP' },
+                    };
+                    const info = typeLabels[game.type] || { label: '🎮 Игра', xp: '+10 XP' };
+                    return (
+                      <div key={game.id} className="card slide-up" style={{ padding: 20, textAlign: 'center' }}>
+                        <div className="badge badge-purple" style={{ marginBottom: 8, display: 'inline-flex' }}>{info.label}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--tiffany)', fontWeight: 600, marginBottom: 12 }}>{info.xp}</div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: 16 }}>{game.title}</h3>
+                        <button
+                          className="btn btn-primary"
+                          style={{ width: '100%' }}
+                          onClick={() => setActiveGame(game)}
+                        >
+                          <i className="ph-fill ph-play"></i> Играть
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -201,19 +214,21 @@ export default function Student() {
               <button className="btn btn-secondary btn-sm" onClick={() => setActiveGame(null)} style={{ marginBottom: 20 }}>
                 <i className="ph ph-arrow-left"></i> К списку игр
               </button>
-              <h2 style={{ marginBottom: 12 }}>{activeGame.title}</h2>
-              <MatchGame 
-                game={activeGame} 
-                onComplete={async (score) => {
+              <h2 style={{ marginBottom: 24 }}>{activeGame.title}</h2>
+              {(() => {
+                const completeHandler = async (score) => {
                   try {
                     const res = await gamesAPI.complete(activeGame.id, score);
                     if (res.data.pointsAwarded > 0) {
-                      // refresh points in leaderboard silently
-                      studentsAPI.getLeaderboard().then(r => setLeaderboard(r.data)).catch(()=>{});
+                      studentsAPI.getLeaderboard().then(r => setLeaderboard(r.data)).catch(() => {});
                     }
                   } catch(e) {}
-                }} 
-              />
+                };
+                if (activeGame.type === 'anagram') return <AnagramGame game={activeGame} onComplete={completeHandler} />;
+                if (activeGame.type === 'quiz') return <QuizGame game={activeGame} onComplete={completeHandler} />;
+                if (activeGame.type === 'pronunciation') return <PronunciationGame game={activeGame} onComplete={completeHandler} />;
+                return <MatchGame game={activeGame} onComplete={completeHandler} />;
+              })()}
             </div>
           )}
 

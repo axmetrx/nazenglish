@@ -30,7 +30,13 @@ export default function ClassPage() {
   const [videoForm, setVideoForm] = useState({ title: '', description: '', url: '' });
   
   const [showAddGame, setShowAddGame] = useState(false);
-  const [gameForm, setGameForm] = useState({ title: '', pairs: [{ word: '', translation: '' }] });
+  const [gameForm, setGameForm] = useState({
+    title: '',
+    gameType: 'match_pairs',
+    pairs: [{ word: '', translation: '' }],
+    words: [''],
+    questions: [{ question: '', options: ['', '', '', ''], answer: 0 }],
+  });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -136,18 +142,29 @@ export default function ClassPage() {
 
   const handleSaveGame = async (e) => {
     e.preventDefault();
-    if (!gameForm.title.trim() || gameForm.pairs.some(p => !p.word.trim() || !p.translation.trim())) {
-      setError('Заполните название и все пары слов');
-      return;
-    }
+    if (!gameForm.title.trim()) { setError('Введите название игры'); return; }
     setSaving(true);
     setError('');
     try {
-      await gamesAPI.create(id, {
-        title: gameForm.title.trim(),
-        type: 'match_pairs',
-        data: { pairs: gameForm.pairs.map(p => ({ word: p.word.trim(), translation: p.translation.trim() })) }
-      });
+      let data;
+      const type = gameForm.gameType;
+      if (type === 'match_pairs') {
+        if (gameForm.pairs.some(p => !p.word.trim() || !p.translation.trim())) {
+          setError('Заполните все пары слов'); setSaving(false); return;
+        }
+        data = { pairs: gameForm.pairs.map(p => ({ word: p.word.trim(), translation: p.translation.trim() })) };
+      } else if (type === 'anagram' || type === 'pronunciation') {
+        const words = gameForm.words.filter(w => w.trim());
+        if (words.length === 0) { setError('Добавьте хотя бы одно слово'); setSaving(false); return; }
+        data = { words };
+      } else if (type === 'quiz') {
+        const qs = gameForm.questions;
+        if (qs.some(q => !q.question.trim() || q.options.some(o => !o.trim()))) {
+          setError('Заполните все вопросы и варианты ответов'); setSaving(false); return;
+        }
+        data = { questions: qs };
+      }
+      await gamesAPI.create(id, { title: gameForm.title.trim(), type, data });
       setShowAddGame(false);
       loadAll(true);
     } catch (err) {
@@ -267,9 +284,13 @@ export default function ClassPage() {
           {/* Games Tab */}
           {tab === 'games' && (
             <div className="fade-in">
-              <div className="section-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <h2>Интерактивные игры</h2>
-                <button className="btn btn-primary" onClick={() => { setGameForm({ title: '', pairs: [{ word: '', translation: '' }] }); setShowAddGame(true); }}>
+                <button className="btn btn-primary" onClick={() => {
+                  setGameForm({ title: '', gameType: 'match_pairs', pairs: [{ word: '', translation: '' }], words: [''], questions: [{ question: '', options: ['', '', '', ''], answer: 0 }] });
+                  setError('');
+                  setShowAddGame(true);
+                }}>
                   <i className="ph ph-plus"></i> Создать игру
                 </button>
               </div>
@@ -277,26 +298,34 @@ export default function ClassPage() {
                 <div className="empty-state">
                   <div className="empty-state-icon"><i className="ph ph-game-controller"></i></div>
                   <h3>Нет игр</h3>
-                  <p>Создайте игру "Найди пару", чтобы ученики могли зарабатывать баллы!</p>
+                  <p>Создайте игру, чтобы ученики могли зарабатывать баллы!</p>
                 </div>
               ) : (
                 <div className="grid-3">
-                  {games.map(game => (
-                    <div key={game.id} className="card slide-up" style={{ padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div className="badge badge-purple" style={{ marginBottom: 8 }}>Найди пару</div>
-                          <h3 style={{ fontSize: '1.1rem', marginBottom: 8 }}>{game.title}</h3>
-                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                            Слов: {game.data.pairs?.length || 0}
-                          </p>
+                  {games.map(game => {
+                    const typeLabels = {
+                      match_pairs: { label: '🃏 Найди пару', xp: '15 XP', info: `${game.data.pairs?.length || 0} пар` },
+                      anagram:     { label: '🔤 Анаграмма', xp: '10 XP', info: `${game.data.words?.length || 0} слов` },
+                      quiz:        { label: '📖 Тест/Квиз', xp: '20 XP', info: `${game.data.questions?.length || 0} вопросов` },
+                      pronunciation: { label: '🎤 Произношение', xp: '25 XP', info: `${game.data.words?.length || 0} слов` },
+                    };
+                    const info = typeLabels[game.type] || { label: '🎮 Игра', xp: '?', info: '' };
+                    return (
+                      <div key={game.id} className="card slide-up" style={{ padding: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div className="badge badge-purple" style={{ marginBottom: 6 }}>{info.label}</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--tiffany)', fontWeight: 600, marginBottom: 8 }}>+{info.xp} за прохождение</div>
+                            <h3 style={{ fontSize: '1.1rem', marginBottom: 6 }}>{game.title}</h3>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{info.info}</p>
+                          </div>
+                          <button className="btn btn-icon" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteGame(game.id)}>
+                            <i className="ph ph-trash"></i>
+                          </button>
                         </div>
-                        <button className="btn btn-icon" style={{ color: 'var(--error)' }} onClick={() => handleDeleteGame(game.id)}>
-                          <i className="ph ph-trash"></i>
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -430,62 +459,152 @@ export default function ClassPage() {
       {/* Add Game Modal */}
       {showAddGame && (
         <div className="modal-overlay" onClick={() => setShowAddGame(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-header">
-              <h3>Создать игру "Найди пару"</h3>
-              <button className="btn btn-icon" onClick={() => setShowAddGame(false)}><i className="ph ph-x"></i></button>
+              <h3 className="modal-title"><i className="ph ph-game-controller"></i> Создать игру</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddGame(false)}><i className="ph ph-x"></i></button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleSaveGame} className="modal-form">
-                <div className="form-group">
-                  <label className="form-label">Название игры</label>
-                  <input
-                    className="form-input"
-                    value={gameForm.title}
-                    onChange={(e) => setGameForm({ ...gameForm, title: e.target.value })}
-                    placeholder="Например: Фрукты и Овощи"
-                  />
-                </div>
-                
-                <div className="form-label" style={{ marginBottom: 12 }}>Пары слов (Английский - Русский)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-                  {gameForm.pairs.map((pair, index) => (
-                    <div key={index} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <input
-                        className="form-input"
-                        placeholder="Apple"
-                        value={pair.word}
-                        onChange={(e) => handlePairChange(index, 'word', e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <input
-                        className="form-input"
-                        placeholder="Яблоко"
-                        value={pair.translation}
-                        onChange={(e) => handlePairChange(index, 'translation', e.target.value)}
-                        style={{ flex: 1 }}
-                      />
-                      <button type="button" className="btn btn-icon" style={{ color: 'var(--error)' }} onClick={() => handleRemovePair(index)} disabled={gameForm.pairs.length === 1}>
-                        <i className="ph ph-trash"></i>
-                      </button>
+            <form onSubmit={handleSaveGame}>
+              {/* Title */}
+              <div className="form-group">
+                <label className="form-label">Название игры *</label>
+                <input className="form-input" value={gameForm.title}
+                  onChange={(e) => setGameForm({ ...gameForm, title: e.target.value })}
+                  placeholder="Например: Животные" />
+              </div>
+
+              {/* Game Type Selector */}
+              <div className="form-group">
+                <label className="form-label">Тип игры</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { value: 'match_pairs', icon: '🃏', label: 'Найди пару', desc: '+15 XP', hint: 'Слово + перевод' },
+                    { value: 'anagram', icon: '🔤', label: 'Анаграмма', desc: '+10 XP', hint: 'Собери слово из букв' },
+                    { value: 'quiz', icon: '📖', label: 'Тест/Квиз', desc: '+20 XP', hint: 'Вопросы с вариантами' },
+                    { value: 'pronunciation', icon: '🎤', label: 'Произношение', desc: '+25 XP', hint: 'Говори в микрофон' },
+                  ].map(t => (
+                    <div key={t.value} onClick={() => setGameForm({ ...gameForm, gameType: t.value })}
+                      style={{
+                        padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                        border: `2px solid ${gameForm.gameType === t.value ? 'var(--tiffany)' : 'var(--border)'}`,
+                        background: gameForm.gameType === t.value ? 'var(--tiffany-xlight)' : 'var(--bg-secondary)',
+                        transition: 'all 0.2s',
+                      }}>
+                      <div style={{ fontSize: '1.3rem', marginBottom: 4 }}>{t.icon}</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: gameForm.gameType === t.value ? 'var(--tiffany-dark)' : 'var(--text-primary)' }}>{t.label}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--tiffany)', fontWeight: 600 }}>{t.desc}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.hint}</div>
                     </div>
                   ))}
                 </div>
-                
-                <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddPair} style={{ marginBottom: 24, width: 'fit-content' }}>
-                  <i className="ph ph-plus"></i> Добавить пару
-                </button>
+              </div>
 
-                {error && <div className="alert alert-error">{error}</div>}
-
-                <div className="modal-actions" style={{ marginTop: 'auto' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddGame(false)}>Отмена</button>
-                  <button type="submit" className="btn btn-primary" disabled={saving}>
-                    {saving ? 'Сохранение...' : 'Создать игру'}
+              {/* Match Pairs form */}
+              {gameForm.gameType === 'match_pairs' && (
+                <div>
+                  <div className="form-label" style={{ marginBottom: 12 }}>Пары слов (Английский — Русский)</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                    {gameForm.pairs.map((pair, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <input className="form-input" placeholder="Apple" value={pair.word}
+                          onChange={(e) => { const p = [...gameForm.pairs]; p[idx].word = e.target.value; setGameForm({ ...gameForm, pairs: p }); }}
+                          style={{ flex: 1 }} />
+                        <input className="form-input" placeholder="Яблоко" value={pair.translation}
+                          onChange={(e) => { const p = [...gameForm.pairs]; p[idx].translation = e.target.value; setGameForm({ ...gameForm, pairs: p }); }}
+                          style={{ flex: 1 }} />
+                        <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
+                          onClick={() => setGameForm({ ...gameForm, pairs: gameForm.pairs.filter((_, i) => i !== idx) })}
+                          disabled={gameForm.pairs.length === 1}>
+                          <i className="ph ph-trash"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="btn btn-secondary btn-sm"
+                    onClick={() => setGameForm({ ...gameForm, pairs: [...gameForm.pairs, { word: '', translation: '' }] })}>
+                    <i className="ph ph-plus"></i> Добавить пару
                   </button>
                 </div>
-              </form>
-            </div>
+              )}
+
+              {/* Anagram / Pronunciation form */}
+              {(gameForm.gameType === 'anagram' || gameForm.gameType === 'pronunciation') && (
+                <div>
+                  <div className="form-label" style={{ marginBottom: 12 }}>
+                    {gameForm.gameType === 'anagram' ? 'Слова для угадывания (на английском)' : 'Слова для произношения (на английском)'}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                    {gameForm.words.map((word, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        <input className="form-input" placeholder="apple" value={word}
+                          onChange={(e) => { const w = [...gameForm.words]; w[idx] = e.target.value; setGameForm({ ...gameForm, words: w }); }}
+                          style={{ flex: 1 }} />
+                        <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
+                          onClick={() => setGameForm({ ...gameForm, words: gameForm.words.filter((_, i) => i !== idx) })}
+                          disabled={gameForm.words.length === 1}>
+                          <i className="ph ph-trash"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="btn btn-secondary btn-sm"
+                    onClick={() => setGameForm({ ...gameForm, words: [...gameForm.words, ''] })}>
+                    <i className="ph ph-plus"></i> Добавить слово
+                  </button>
+                </div>
+              )}
+
+              {/* Quiz form */}
+              {gameForm.gameType === 'quiz' && (
+                <div>
+                  <div className="form-label" style={{ marginBottom: 12 }}>Вопросы и варианты ответов</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 16 }}>
+                    {gameForm.questions.map((q, qi) => (
+                      <div key={qi} style={{ padding: 16, background: 'var(--bg-tertiary)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Вопрос {qi + 1}</span>
+                          {gameForm.questions.length > 1 && (
+                            <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
+                              onClick={() => setGameForm({ ...gameForm, questions: gameForm.questions.filter((_, i) => i !== qi) })}>
+                              <i className="ph ph-trash"></i>
+                            </button>
+                          )}
+                        </div>
+                        <input className="form-input" placeholder="Как переводится 'кот'?" value={q.question}
+                          onChange={(e) => { const qs = [...gameForm.questions]; qs[qi].question = e.target.value; setGameForm({ ...gameForm, questions: qs }); }}
+                          style={{ marginBottom: 10 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {q.options.map((opt, oi) => (
+                            <div key={oi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <input type="radio" name={`answer-${qi}`} checked={q.answer === oi}
+                                onChange={() => { const qs = [...gameForm.questions]; qs[qi].answer = oi; setGameForm({ ...gameForm, questions: qs }); }}
+                                style={{ accentColor: 'var(--tiffany)', width: 16, height: 16, flexShrink: 0 }} />
+                              <input className="form-input" placeholder={`Вариант ${String.fromCharCode(65 + oi)}`} value={opt}
+                                onChange={(e) => { const qs = [...gameForm.questions]; qs[qi].options[oi] = e.target.value; setGameForm({ ...gameForm, questions: qs }); }}
+                                style={{ flex: 1 }} />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 8 }}>☝️ Выберите правильный ответ (кружок слева)</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="btn btn-secondary btn-sm"
+                    onClick={() => setGameForm({ ...gameForm, questions: [...gameForm.questions, { question: '', options: ['', '', '', ''], answer: 0 }] })}>
+                    <i className="ph ph-plus"></i> Добавить вопрос
+                  </button>
+                </div>
+              )}
+
+              {error && <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button type="button" className="btn btn-secondary btn-full" onClick={() => setShowAddGame(false)}>Отмена</button>
+                <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
+                  {saving ? 'Сохранение...' : <><i className="ph ph-game-controller"></i> Создать игру</>}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

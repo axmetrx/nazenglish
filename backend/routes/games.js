@@ -66,18 +66,24 @@ router.get('/student/list', studentAuth, async (req, res) => {
 router.post('/student/complete/:id', studentAuth, async (req, res) => {
   try {
     const { score } = req.body;
+
+    // Get game type to determine XP
+    const gameRes = await db.query('SELECT type FROM games WHERE id = $1', [req.params.id]);
+    const gameType = gameRes.rows[0]?.type || 'match_pairs';
+    const xpByType = { match_pairs: 15, anagram: 10, quiz: score || 20, pronunciation: 25 };
+    const xp = xpByType[gameType] ?? 15;
+
     // Insert progress, do nothing if already exists
     const result = await db.query(`
       INSERT INTO student_game_progress (student_id, game_id, score) 
       VALUES ($1, $2, $3)
       ON CONFLICT (student_id, game_id) DO NOTHING
       RETURNING game_id
-    `, [req.student.studentId, req.params.id, score || 15]);
+    `, [req.student.studentId, req.params.id, xp]);
 
     if (result.rowCount > 0) {
-      // Award 15 points
-      await db.query('UPDATE students SET points = points + $1 WHERE id = $2', [score || 15, req.student.studentId]);
-      res.json({ success: true, pointsAwarded: score || 15 });
+      await db.query('UPDATE students SET points = points + $1 WHERE id = $2', [xp, req.student.studentId]);
+      res.json({ success: true, pointsAwarded: xp });
     } else {
       res.json({ success: true, pointsAwarded: 0, message: 'Уже пройдено' });
     }
