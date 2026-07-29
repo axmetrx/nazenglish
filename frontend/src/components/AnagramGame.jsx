@@ -37,6 +37,18 @@ export default function AnagramGame({ game, onComplete }) {
     setStatus('playing');
   };
 
+  const speakText = (text, lang = 'en-US') => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {}
+    }
+  };
+
   const handleLetterClick = (letterObj) => {
     if (status !== 'playing' || letterObj.used) return;
     const newSelected = [...selected, letterObj];
@@ -52,6 +64,7 @@ export default function AnagramGame({ game, onComplete }) {
     if (attempt.length === currentWord.length) {
       if (attempt === currentWord) {
         setStatus('correct');
+        speakText(words[currentIndex]);
         setScore(s => s + 1);
         setTimeout(() => {
           if (currentIndex + 1 >= words.length) {
@@ -61,7 +74,7 @@ export default function AnagramGame({ game, onComplete }) {
           } else {
             setCurrentIndex(i => i + 1);
           }
-        }, 1000);
+        }, 1200);
       } else {
         setStatus('wrong');
         setTimeout(() => {
@@ -100,18 +113,27 @@ export default function AnagramGame({ game, onComplete }) {
 
   return (
     <div style={{ maxWidth: 560, margin: '0 auto' }}>
-      {/* Progress */}
+      {/* Progress & Audio Hint */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
           Слово {currentIndex + 1} из {words.length}
         </span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {words.map((_, i) => (
-            <div key={i} style={{
-              width: 10, height: 10, borderRadius: '50%',
-              background: i < currentIndex ? 'var(--tiffany)' : i === currentIndex ? 'var(--tiffany-dark)' : 'var(--border)'
-            }} />
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={() => speakText(currentWord)}
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '4px 12px', fontSize: '0.85rem' }}
+          >
+            <i className="ph-fill ph-speaker-high" style={{ color: 'var(--tiffany)' }}></i> Прослушать
+          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {words.map((_, i) => (
+              <div key={i} style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: i < currentIndex ? 'var(--tiffany)' : i === currentIndex ? 'var(--tiffany-dark)' : 'var(--border)'
+              }} />
+            ))}
+          </div>
         </div>
       </div>
 

@@ -17,6 +17,18 @@ export default function PronunciationGame({ game, onComplete }) {
 
   const currentWord = words[currentIndex] || '';
 
+  const speakText = (text) => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {}
+    }
+  };
+
   const startListening = () => {
     if (!supported) {
       setError('Ваш браузер не поддерживает распознавание речи. Используйте Chrome или Edge.');
@@ -42,6 +54,7 @@ export default function PronunciationGame({ game, onComplete }) {
       setStatus(isCorrect ? 'correct' : 'wrong');
 
       if (isCorrect) {
+        speakText(currentWord);
         setScore(s => s + 1);
         setTimeout(() => {
           if (currentIndex + 1 >= words.length) {
@@ -132,10 +145,24 @@ export default function PronunciationGame({ game, onComplete }) {
       <div style={{
         background: 'linear-gradient(135deg, var(--tiffany) 0%, var(--tiffany-dark) 100%)',
         borderRadius: 20,
-        padding: '48px 32px',
+        padding: '40px 32px',
         marginBottom: 32,
         boxShadow: '0 8px 32px rgba(10,186,181,0.3)',
+        position: 'relative',
       }}>
+        <button
+          onClick={() => speakText(currentWord)}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
+            width: 40, height: 40, display: 'flex', alignItems: 'center', justify: 'center',
+            color: '#fff', fontSize: '1.2rem', cursor: 'pointer',
+            backdropFilter: 'blur(4px)'
+          }}
+          title="Послушать как правильно произносится"
+        >
+          <i className="ph-fill ph-speaker-high"></i>
+        </button>
         <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: 12, letterSpacing: '0.1em', fontWeight: 500 }}>
           ПРОИЗНЕСИТЕ СЛОВО
         </div>

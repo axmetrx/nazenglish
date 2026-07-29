@@ -10,9 +10,24 @@ export default function QuizGame({ game, onComplete }) {
 
   const current = questions[currentIndex];
 
+  const speakText = (text) => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        const isEnglish = /[a-zA-Z]/.test(text);
+        utterance.lang = isEnglish ? 'en-US' : 'ru-RU';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {}
+    }
+  };
+
   const handleAnswer = (optionIndex) => {
     if (selectedOption !== null) return;
     setSelectedOption(optionIndex);
+
+    speakText(current.options[optionIndex]);
 
     const isCorrect = optionIndex === current.answer;
     if (isCorrect) setCorrectCount(c => c + 1);
@@ -83,7 +98,20 @@ export default function QuizGame({ game, onComplete }) {
         marginBottom: 24,
         textAlign: 'center',
         boxShadow: '0 4px 20px rgba(10,186,181,0.25)',
+        position: 'relative',
       }}>
+        <button
+          onClick={() => speakText(current.question)}
+          style={{
+            position: 'absolute', top: 12, right: 12,
+            background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
+            width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: '1.1rem', cursor: 'pointer'
+          }}
+          title="Прослушать вопрос"
+        >
+          <i className="ph-fill ph-speaker-high"></i>
+        </button>
         <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: 8, fontWeight: 500 }}>
           ВОПРОС
         </div>
