@@ -88,37 +88,40 @@ export default function Student() {
       <Navbar role="student" />
       <div className="page">
         <div className="container">
-          {/* Header */}
-          <div className="section-header fade-in">
-            <div>
-              <div className="badge badge-green" style={{ marginBottom: 12 }}>
+          {/* Hero Banner */}
+          <div className="student-hero fade-in">
+            <div className="student-hero-left">
+              <div className="badge badge-green" style={{ marginBottom: 14 }}>
                 <i className="ph ph-check-circle"></i> Вы в классе
               </div>
-              <h1>{classData?.name}</h1>
+              <h1 style={{ color: '#fff', marginBottom: 6 }}>{classData?.name}</h1>
               {classData?.description && (
-                <p style={{ marginTop: 8, fontSize: '1rem', color: 'var(--text-secondary)' }}>
+                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '1rem', marginTop: 4 }}>
                   {classData.description}
                 </p>
               )}
             </div>
-            <div className="student-welcome card">
-              <div style={{ fontSize: '2rem', marginBottom: 8, color: 'var(--accent)' }}><i className="ph ph-hand-waving"></i></div>
-              <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                Привет, {studentData?.name}!
+            <div className="student-hero-right">
+              <div className="student-avatar-icon">
+                <i className="ph ph-student"></i>
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 8 }}>
-                {videos.length} урок{videos.length === 1 ? '' : videos.length < 5 ? 'а' : 'ов'} доступно
-              </div>
-              <div className="badge badge-orange" style={{ width: '100%', justifyContent: 'center', fontSize: '0.9rem' }}>
-                <i className="ph-fill ph-star"></i> Ваш рейтинг: {leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP
+              <div className="student-hero-info">
+                <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#fff' }}>
+                  Привет, {studentData?.name}! 👋
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', marginTop: 4 }}>
+                  {videos.length} урок{videos.length === 1 ? '' : videos.length < 5 ? 'а' : 'ов'} доступно
+                </div>
+                <div className="xp-pill">
+                  <i className="ph-fill ph-star"></i>
+                  {leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="divider" />
-
           {/* Tabs */}
-          <div className="cp-tabs">
+          <div className="cp-tabs" style={{ marginTop: 32 }}>
             <button className={`tab ${tab === 'videos' ? 'active' : ''}`} onClick={() => { setTab('videos'); setActiveGame(null); }}>
               <i className="ph ph-video"></i> Уроки
             </button>
@@ -230,7 +233,7 @@ export default function Student() {
                       alignItems: 'center', 
                       padding: '16px 24px',
                       borderBottom: index < leaderboard.length - 1 ? '1px solid var(--border)' : 'none',
-                      background: student.id === studentData?.id ? 'rgba(var(--accent-rgb), 0.05)' : 'transparent'
+                      background: student.id === studentData?.id ? 'var(--tiffany-xlight)' : 'transparent'
                     }}
                   >
                     <div style={{ width: 40, fontSize: '1.5rem', fontWeight: 'bold', color: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : 'var(--text-secondary)' }}>
@@ -239,7 +242,7 @@ export default function Student() {
                     <div style={{ flex: 1, fontSize: '1.1rem', fontWeight: student.id === studentData?.id ? 'bold' : 'normal' }}>
                       {student.name} {student.id === studentData?.id ? '(Вы)' : ''}
                     </div>
-                    <div className="badge badge-orange" style={{ fontSize: '1rem', padding: '6px 12px' }}>
+                    <div className="badge badge-purple" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>
                       <i className="ph-fill ph-star"></i> {student.points || 0} XP
                     </div>
                   </div>
@@ -251,15 +254,17 @@ export default function Student() {
       </div>
 
       <style>{`
-        .student-header {
+        .student-hero {
+          background: linear-gradient(135deg, #0ABAB5 0%, #089E9A 60%, #067370 100%);
+          border-radius: 20px;
+          padding: 36px 40px;
           display: flex;
-          align-items: flex-start;
+          align-items: center;
           justify-content: space-between;
           gap: 24px;
-          margin-bottom: 24px;
+          box-shadow: 0 8px 32px rgba(10, 186, 181, 0.3);
           flex-wrap: wrap;
         }
-        .student-welcome {
           text-align: center;
           min-width: 180px;
           padding: 20px 24px;
