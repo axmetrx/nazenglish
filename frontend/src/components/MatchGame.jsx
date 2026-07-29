@@ -20,8 +20,33 @@ export default function MatchGame({ game, onComplete }) {
     setCards(newCards);
   }, [game]);
 
+  const speakText = (text, type) => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = type === 'word' ? 'en-US' : 'ru-RU';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {}
+    }
+  };
+
   const handleCardClick = (index) => {
-    if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return;
+    const clickedCard = cards[index];
+
+    if (flipped.includes(index) || matched.includes(index)) {
+      if (clickedCard) {
+        speakText(clickedCard.text, clickedCard.type);
+      }
+      return;
+    }
+
+    if (flipped.length === 2) return;
+
+    if (clickedCard) {
+      speakText(clickedCard.text, clickedCard.type);
+    }
 
     const newFlipped = [...flipped, index];
     setFlipped(newFlipped);
@@ -72,7 +97,8 @@ export default function MatchGame({ game, onComplete }) {
                   <i className="ph ph-question"></i>
                 </div>
                 <div className="match-card-back">
-                  {card.text}
+                  <span>{card.text}</span>
+                  <i className="ph-fill ph-speaker-high" style={{ fontSize: '0.9rem', opacity: 0.7, marginTop: 4 }}></i>
                 </div>
               </div>
             </div>
@@ -134,6 +160,7 @@ export default function MatchGame({ game, onComplete }) {
           color: var(--text-primary);
           transform: rotateY(180deg);
           border: 1px solid var(--border);
+          flex-direction: column;
         }
         .match-game-finished {
           text-align: center;
