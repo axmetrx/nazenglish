@@ -348,14 +348,14 @@ export default function Student() {
           {/* Leaderboard Tab */}
           {tab === 'leaderboard' && (
             <div className="fade-in">
-              <ActivityChart data={weeklyActivity} />
+              <ActivityChart data={weeklyActivity || []} />
               <div className="section-header" style={{ marginTop: 32 }}>
-                <h2><i className="ph ph-trophy"></i> Рейтинг класса</h2>
+                <h2><i className="ph ph-trophy"></i> {t('classLeaderboard')}</h2>
               </div>
               <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                {leaderboard.map((student, index) => (
+                {(Array.isArray(leaderboard) ? leaderboard : []).map((student, index) => (
                   <div 
-                    key={student.id} 
+                    key={student.id || index} 
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -368,7 +368,7 @@ export default function Student() {
                       {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`}
                     </div>
                     <div style={{ flex: 1, fontSize: '1.1rem', fontWeight: student.id === studentData?.id ? 'bold' : 'normal' }}>
-                      {student.name} {student.id === studentData?.id ? '(Вы)' : ''}
+                      {student.name} {student.id === studentData?.id ? '(Сиз / Вы)' : ''}
                     </div>
                     <div className="badge badge-purple" style={{ fontSize: '0.9rem', padding: '6px 12px' }}>
                       <i className="ph-fill ph-star"></i> {student.points || 0} XP
@@ -392,10 +392,6 @@ export default function Student() {
           gap: 24px;
           box-shadow: 0 8px 32px rgba(10, 186, 181, 0.3);
           flex-wrap: wrap;
-        }
-          text-align: center;
-          min-width: 180px;
-          padding: 20px 24px;
         }
       `}</style>
     </>

@@ -10,11 +10,15 @@ export default function ActivityChart({ data }) {
     return d.toISOString().split('T')[0];
   });
 
+  const safeData = Array.isArray(data) ? data : [];
+
   const chartData = last7Days.map(date => {
-    // Need to handle timezone parsing safely. data[].active_date might be ISO string
-    const match = data.find(d => {
-      const dString = new Date(d.active_date).toISOString().split('T')[0];
-      return dString === date;
+    const match = safeData.find(d => {
+      if (!d || !d.active_date) return false;
+      try {
+        const dString = new Date(d.active_date).toISOString().split('T')[0];
+        return dString === date;
+      } catch { return false; }
     });
     
     // Format label as Day of Week (e.g. "Пн", "Вт")
