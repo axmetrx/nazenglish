@@ -7,6 +7,7 @@ import MatchGame from '../components/MatchGame';
 import AnagramGame from '../components/AnagramGame';
 import QuizGame from '../components/QuizGame';
 import PronunciationGame from '../components/PronunciationGame';
+import ActivityChart from '../components/ActivityChart';
 import { t } from '../utils/translations';
 
 export default function Student() {
