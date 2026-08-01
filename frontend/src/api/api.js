@@ -29,6 +29,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Автоматический перенаправление при истечении сессии (401 Unauthorized)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      if (url.startsWith('/students') || url.startsWith('/games/student')) {
+        localStorage.removeItem('student_token');
+        localStorage.removeItem('student_data');
+        if (window.location.pathname.startsWith('/student')) {
+          window.location.href = '/';
+        }
+      } else {
+        localStorage.removeItem('teacher_token');
+        localStorage.removeItem('teacher_data');
+        if (window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin/login') {
+          window.location.href = '/admin/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ─── Auth (Teacher) ──────────────────────────────────────────
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
