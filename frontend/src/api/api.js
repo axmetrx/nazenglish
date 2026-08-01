@@ -43,6 +43,7 @@ export const classesAPI = {
   getStats: () => api.get('/classes/stats'),
   getOne: (id) => api.get(`/classes/${id}`),
   create: (data) => api.post('/classes', data),
+  syncGrades: () => api.post('/classes/sync-grades'),
   update: (id, data) => api.put(`/classes/${id}`, data),
   delete: (id) => api.delete(`/classes/${id}`),
 };
