@@ -77,7 +77,7 @@ async function syncGradesAndVideos() {
           );
           if (vidExists.rows.length === 0) {
             await pool.query(
-              'INSERT INTO videos (class_id, title, description, url) VALUES ($1, $2, $3, $4)',
+              'INSERT INTO videos (class_id, title, description, url, order_index) VALUES ($1, $2, $3, $4, 0)',
               [classId, vid.title, vid.description || '', vid.url]
             );
             console.log(`    📹 Added video "${vid.title}" -> "${gradeName}"`);

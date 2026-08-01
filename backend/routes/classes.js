@@ -59,7 +59,7 @@ router.post('/sync-grades', auth, async (req, res) => {
         );
         if (vidExists.rows.length === 0) {
           await db.query(
-            'INSERT INTO videos (class_id, title, description, url) VALUES ($1, $2, $3, $4)',
+            'INSERT INTO videos (class_id, title, description, url, order_index) VALUES ($1, $2, $3, $4, 0)',
             [classId, vid.title, vid.description || '', vid.url]
           );
         }
