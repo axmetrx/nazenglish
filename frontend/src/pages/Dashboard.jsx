@@ -22,22 +22,6 @@ export default function Dashboard() {
     loadClasses();
   }, []);
 
-  const [syncing, setSyncing] = useState(false);
-
-  const handleSyncGrades = async () => {
-    setSyncing(true);
-    try {
-      const res = await classesAPI.syncGrades();
-      setClasses(res.data.classes);
-      const statsRes = await classesAPI.getStats();
-      setStats(statsRes.data);
-    } catch {
-      alert('Ошибка создания классов');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const loadClasses = async () => {
     try {
       const [resClasses, resStats] = await Promise.all([
@@ -46,14 +30,6 @@ export default function Dashboard() {
       ]);
       setClasses(resClasses.data);
       setStats(resStats.data);
-
-      // Auto-trigger sync if fewer than 9 classes
-      if (resClasses.data.length < 9) {
-        classesAPI.syncGrades().then((syncRes) => {
-          setClasses(syncRes.data.classes);
-          classesAPI.getStats().then(s => setStats(s.data)).catch(() => {});
-        }).catch(() => {});
-      }
     } catch (err) {
       if (err.response?.status === 401) {
         navigate('/admin/login');
@@ -109,22 +85,13 @@ export default function Dashboard() {
                 Управляйте своими классами и видеоуроками.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-secondary"
-                onClick={handleSyncGrades}
-                disabled={syncing}
-              >
-                <i className="ph ph-sparkle"></i> {syncing ? 'Создаём классы...' : 'Создать 1–9 классы'}
-              </button>
-              <button
-                id="create-class-btn"
-                className="btn btn-primary"
-                onClick={() => setShowModal(true)}
-              >
-                <i className="ph ph-plus"></i> Создать класс
-              </button>
-            </div>
+            <button
+              id="create-class-btn"
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+            >
+              <i className="ph ph-plus"></i> Создать класс
+            </button>
           </div>
 
           {/* Stats */}

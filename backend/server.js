@@ -41,7 +41,6 @@ app.use((err, req, res, next) => {
 // ─── Start ───────────────────────────────────────────────────
 const startServer = async () => {
   await initDB();
-  await syncGradesAndVideos();
   await seedGamesIfNeeded();
   app.listen(PORT, () => {
     console.log(`\n🎓 EnglishClass API Server`);
