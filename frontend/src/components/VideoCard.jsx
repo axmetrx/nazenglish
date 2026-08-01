@@ -1,11 +1,15 @@
 import { useState } from 'react';
 
-// Конвертирует YouTube/Vimeo URL в embed URL
+// Конвертирует YouTube / Vimeo / Google Drive / Telegram URL в embed URL
 function getEmbedUrl(url) {
   if (!url) return null;
 
+  // Google Drive (любые ссылки)
+  let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
+  if (match) return `https://drive.google.com/file/d/${match[1]}/preview`;
+
   // YouTube
-  let match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
+  match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
   if (match) return `https://www.youtube.com/embed/${match[1]}?rel=0`;
 
   // YouTube shorts
@@ -19,10 +23,6 @@ function getEmbedUrl(url) {
   // Telegram Public Post
   match = url.match(/t\.me\/(?!c\/)([a-zA-Z0-9_]+\/\d+)/);
   if (match) return `https://t.me/${match[1]}?embed=1`;
-
-  // Google Drive
-  match = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (match) return `https://drive.google.com/file/d/${match[1]}/preview`;
 
   if (url.includes('youtube.com/embed') || url.includes('player.vimeo.com') || (url.includes('t.me/') && url.includes('embed=')) || (url.includes('drive.google.com') && url.includes('preview'))) return url;
 
@@ -40,86 +40,101 @@ function getYoutubeThumbnail(url) {
 }
 
 export default function VideoCard({ video, index, showActions, onEdit, onDelete, onPlay }) {
-  const [playing, setPlaying] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const embedUrl = getEmbedUrl(video.url);
   const thumbnail = getYoutubeThumbnail(video.url);
 
-  const handlePlay = () => {
-    if (onPlay && !playing) onPlay();
-    setPlaying(true);
+  const handlePlayClick = () => {
+    if (onPlay) onPlay();
+    if (embedUrl) {
+      setShowModal(true);
+    } else {
+      window.open(video.url, '_blank');
+    }
   };
 
   return (
-    <div className="vc-card slide-up" style={{ animationDelay: `${index * 0.07}s` }}>
-      {/* Thumbnail / Player */}
-      <div
-        className="vc-thumb"
-        onClick={() => {
-          if (embedUrl && !playing) handlePlay();
-          else if (!embedUrl) { if (onPlay) onPlay(); window.open(video.url, '_blank'); }
-        }}
-      >
-        {playing && embedUrl ? (
-          <iframe
-            src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
-            title={video.title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-          />
-        ) : (
-          <>
-            {/* Background: YouTube thumbnail or gradient */}
-            {thumbnail ? (
-              <img src={thumbnail} alt={video.title} className="vc-bg-img" />
-            ) : (
-              <div className="vc-bg-gradient" />
-            )}
-            {/* Overlay */}
-            <div className="vc-overlay" />
-            {/* Lesson badge */}
-            <div className="vc-badge">
-              <i className="ph ph-video"></i> Урок {index + 1}
+    <>
+      <div className="vc-card slide-up" style={{ animationDelay: `${index * 0.07}s` }}>
+        {/* Thumbnail area */}
+        <div className="vc-thumb" onClick={handlePlayClick}>
+          {thumbnail ? (
+            <img src={thumbnail} alt={video.title} className="vc-bg-img" />
+          ) : (
+            <div className="vc-bg-gradient">
+              <i className="ph-fill ph-video-camera" style={{ fontSize: '3rem', color: 'rgba(255,255,255,0.4)' }}></i>
             </div>
-            {/* Play button */}
-            <div className="vc-play-wrap">
-              <div className="vc-play-btn">
-                {embedUrl
-                  ? <i className="ph-fill ph-play"></i>
-                  : <i className="ph-fill ph-arrow-square-out"></i>}
+          )}
+
+          <div className="vc-overlay" />
+
+          {/* Lesson badge */}
+          <div className="vc-badge">
+            <i className="ph ph-video"></i> Сабак {index + 1}
+          </div>
+
+          {/* Play button */}
+          <div className="vc-play-wrap">
+            <div className="vc-play-btn">
+              {embedUrl
+                ? <i className="ph-fill ph-play"></i>
+                : <i className="ph-fill ph-arrow-square-out"></i>}
+            </div>
+            <span className="vc-play-label">{embedUrl ? 'Көрүү' : 'Ачуу'}</span>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="vc-info">
+          <h3 className="vc-title">{video.title}</h3>
+          {video.description && (
+            <p className="vc-desc">{video.description}</p>
+          )}
+          <button className="vc-btn" onClick={handlePlayClick}>
+            <i className="ph-fill ph-play-circle"></i> Сабакты көрүү
+          </button>
+        </div>
+
+        {/* Teacher actions */}
+        {showActions && (
+          <div className="vc-actions">
+            <button className="vc-act-btn edit" onClick={() => onEdit(video)} title="Редактировать">
+              <i className="ph ph-pencil-simple"></i>
+            </button>
+            <button className="vc-act-btn del" onClick={() => onDelete(video.id)} title="Удалить">
+              <i className="ph ph-trash"></i>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Large Widescreen Video Modal Player */}
+      {showModal && (
+        <div className="vm-overlay" onClick={() => setShowModal(false)}>
+          <div className="vm-container" onClick={(e) => e.stopPropagation()}>
+            <div className="vm-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="badge badge-purple" style={{ fontSize: '0.85rem' }}>
+                  <i className="ph ph-video"></i> Сабак {index + 1}
+                </span>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                  {video.title}
+                </h3>
               </div>
-              <span className="vc-play-label">{embedUrl ? 'Смотреть' : 'Открыть'}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowModal(false)} style={{ fontSize: '1.2rem' }}>
+                <i className="ph ph-x"></i>
+              </button>
             </div>
-            {/* Duration shimmer */}
-            <div className="vc-duration">
-              <i className="ph ph-film-strip"></i> Видео
+
+            <div className="vm-player-frame">
+              <iframe
+                src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="vc-info">
-        <h3 className="vc-title">{video.title}</h3>
-        {video.description && (
-          <p className="vc-desc">{video.description}</p>
-        )}
-        {!playing && (
-          <button className="vc-btn" onClick={handlePlay}>
-            <i className="ph-fill ph-play-circle"></i> Смотреть урок
-          </button>
-        )}
-      </div>
-
-      {/* Teacher actions */}
-      {showActions && (
-        <div className="vc-actions">
-          <button className="vc-act-btn edit" onClick={() => onEdit(video)} title="Редактировать">
-            <i className="ph ph-pencil-simple"></i>
-          </button>
-          <button className="vc-act-btn del" onClick={() => onDelete(video.id)} title="Удалить">
-            <i className="ph ph-trash"></i>
-          </button>
+          </div>
         </div>
       )}
 
@@ -129,7 +144,7 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           border-radius: 18px;
           overflow: hidden;
           background: #fff;
-          border: 1px solid var(--border);
+          border: 1.5px solid var(--border);
           box-shadow: var(--shadow-sm);
           display: flex;
           flex-direction: column;
@@ -141,7 +156,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           border-color: var(--tiffany);
         }
 
-        /* Thumbnail area */
         .vc-thumb {
           position: relative;
           width: 100%;
@@ -160,6 +174,7 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
         .vc-bg-gradient {
           position: absolute; inset: 0;
           background: linear-gradient(135deg, var(--tiffany) 0%, var(--tiffany-darker) 100%);
+          display: flex; alignItems: center; justify-content: center;
         }
         .vc-overlay {
           position: absolute; inset: 0;
@@ -170,7 +185,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 60%, transparent 100%);
         }
 
-        /* Lesson badge top-left */
         .vc-badge {
           position: absolute; top: 12px; left: 12px;
           background: rgba(255,255,255,0.92);
@@ -182,15 +196,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           border: 1px solid rgba(255,255,255,0.6);
         }
 
-        /* Duration bottom-right */
-        .vc-duration {
-          position: absolute; bottom: 10px; right: 12px;
-          color: rgba(255,255,255,0.85);
-          font-size: 0.72rem; font-weight: 500;
-          display: flex; align-items: center; gap: 4px;
-        }
-
-        /* Play button center */
         .vc-play-wrap {
           position: absolute; inset: 0;
           display: flex; flex-direction: column;
@@ -228,7 +233,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           transform: translateY(0);
         }
 
-        /* Info section */
         .vc-info {
           padding: 18px 20px 20px;
           display: flex; flex-direction: column; gap: 8px;
@@ -276,7 +280,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           box-shadow: 0 4px 16px rgba(10,186,181,0.45);
         }
 
-        /* Teacher action buttons */
         .vc-actions {
           position: absolute; top: 10px; right: 10px;
           display: flex; gap: 6px;
@@ -304,7 +307,43 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           color: var(--danger);
         }
         .vc-act-btn.del:hover { background: var(--danger-light); }
+
+        /* Widescreen Video Modal */
+        .vm-overlay {
+          position: fixed; inset: 0; z-index: 999;
+          background: rgba(6, 40, 38, 0.75);
+          backdrop-filter: blur(8px);
+          display: flex; align-items: center; justify-content: center;
+          padding: 24px;
+          animation: fadeIn 0.25s ease;
+        }
+        .vm-container {
+          background: #ffffff;
+          border-radius: 24px;
+          width: 100%;
+          max-width: 960px;
+          overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+          animation: slideUp 0.3s ease;
+        }
+        .vm-header {
+          padding: 16px 24px;
+          display: flex; align-items: center; justify-content: space-between;
+          border-bottom: 1px solid var(--border);
+          background: var(--bg-secondary);
+        }
+        .vm-player-frame {
+          width: 100%;
+          aspect-ratio: 16/9;
+          background: #000;
+        }
+        .vm-player-frame iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
+          display: block;
+        }
       `}</style>
-    </div>
+    </>
   );
 }
