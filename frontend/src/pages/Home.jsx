@@ -46,9 +46,9 @@ export default function Home() {
   };
 
   const features = [
-    { icon: '🎬', text: 'Видео сабактар жана оюндар' },
+    { icon: '🎬', text: 'Видео сабактар жана кызыктуу оюндар' },
     { icon: '📱', text: 'Телефондо жана компьютерде иштейт' },
-    { icon: '⚡', text: 'Код аркылуу тез кирүү' },
+    { icon: '⚡', text: 'Код аркылуу бат кирүү жана упай топтоо' },
   ];
 
   return (
@@ -58,18 +58,40 @@ export default function Home() {
       <div className="home-page">
         {/* ── Hero Section ── */}
         <div className="home-hero-section">
-          <div className="home-badge-pill">
-            🎓 Англис тили
+          <div className="home-badge-row">
+            <div className="home-badge-pill">
+              <span className="home-badge-pulse"></span>
+              🎓 Англис тили
+            </div>
+            <div className="home-badge-pill home-badge-light">
+              🇬🇧 3–9 класстар
+            </div>
           </div>
 
           <h1 className="home-title">
-            Англис тилин<br />
-            <span className="gradient-text">үйрөнүңүз</span>
+            Англис тилин оңой<br />
+            жана кызыктуу <span className="gradient-text">үйрөнүңүз!</span>
           </h1>
 
           <p className="home-subtitle">
-            Мугалим берген кодду киргизип, видео сабактарга жана оюндарга кириңиз.
+            Мугалим берген класс кодун киргизип, 238 видео сабакка жана интерактивдүү оюндарга дароо кириңиз.
           </p>
+
+          {/* Quick Highlight Cards */}
+          <div className="home-highlights-row">
+            <div className="home-highlight-chip">
+              <span className="hh-icon">🎬</span>
+              <span><strong>238</strong> видео</span>
+            </div>
+            <div className="home-highlight-chip">
+              <span className="hh-icon">🎮</span>
+              <span><strong>15</strong> оюн</span>
+            </div>
+            <div className="home-highlight-chip">
+              <span className="hh-icon">🏆</span>
+              <span><strong>XP</strong> рейтинг</span>
+            </div>
+          </div>
 
           <div className="home-features-list">
             {features.map((f, i) => (
@@ -144,10 +166,10 @@ export default function Home() {
         /* ── Page wrapper ── */
         .home-page {
           min-height: 100vh;
-          padding: 72px 16px 32px;
+          padding: 82px 16px 36px;
           display: flex;
           flex-direction: column;
-          gap: 28px;
+          gap: 32px;
           max-width: 480px;
           margin: 0 auto;
           width: 100%;
@@ -161,6 +183,14 @@ export default function Home() {
           text-align: center;
           gap: 16px;
           padding-top: 8px;
+        }
+
+        .home-badge-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          justify-content: center;
         }
 
         .home-badge-pill {
@@ -177,8 +207,22 @@ export default function Home() {
           letter-spacing: 0.02em;
         }
 
+        .home-badge-light {
+          background: rgba(10, 186, 181, 0.08);
+          border-color: rgba(10, 186, 181, 0.2);
+        }
+
+        .home-badge-pulse {
+          width: 8px;
+          height: 8px;
+          background: #059669;
+          border-radius: 50%;
+          display: inline-block;
+          animation: pulse 1.8s infinite;
+        }
+
         .home-title {
-          font-size: clamp(1.65rem, 6vw, 2.4rem);
+          font-size: clamp(1.75rem, 6.5vw, 2.5rem);
           font-weight: 800;
           line-height: 1.2;
           color: var(--text-primary);
@@ -190,8 +234,35 @@ export default function Home() {
           font-size: 0.95rem;
           color: var(--text-secondary);
           line-height: 1.6;
-          max-width: 340px;
+          max-width: 360px;
           margin: 0 auto;
+        }
+
+        /* ── Highlights Row ── */
+        .home-highlights-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-content: center;
+          margin: 4px 0;
+          flex-wrap: wrap;
+        }
+
+        .home-highlight-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          background: #ffffff;
+          border: 1.5px solid var(--border);
+          border-radius: 100px;
+          font-size: 0.84rem;
+          color: var(--text-primary);
+          box-shadow: var(--shadow-sm);
+        }
+
+        .hh-icon {
+          font-size: 1rem;
         }
 
         /* ── Features list ── */
@@ -200,25 +271,37 @@ export default function Home() {
           flex-direction: column;
           gap: 10px;
           width: 100%;
-          max-width: 340px;
+          max-width: 380px;
         }
 
         .home-feature-item {
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 10px 14px;
-          background: var(--bg-secondary);
+          padding: 12px 16px;
+          background: #ffffff;
           border: 1px solid var(--border);
-          border-radius: 12px;
+          border-radius: 14px;
           text-align: left;
+          box-shadow: var(--shadow-sm);
+          transition: transform 0.2s;
+        }
+
+        .home-feature-item:hover {
+          transform: translateY(-2px);
+          border-color: var(--tiffany);
         }
 
         .home-feature-icon {
-          font-size: 1.3rem;
+          font-size: 1.35rem;
           flex-shrink: 0;
-          width: 32px;
-          text-align: center;
+          width: 34px;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--tiffany-xlight);
+          border-radius: 10px;
         }
 
         .home-feature-text {
@@ -228,22 +311,22 @@ export default function Home() {
           line-height: 1.4;
         }
 
-
         /* ── Login card ── */
         .home-login-card {
           background: #ffffff;
           border: 1.5px solid var(--border);
-          border-radius: 20px;
-          padding: 24px 20px 28px;
-          box-shadow: 0 8px 32px rgba(10, 186, 181, 0.12);
+          border-radius: 24px;
+          padding: 28px 24px 32px;
+          box-shadow: 0 12px 40px rgba(10, 186, 181, 0.15);
         }
 
         .home-login-header {
           margin-bottom: 20px;
+          text-align: left;
         }
 
         .home-login-header h2 {
-          font-size: 1.35rem;
+          font-size: 1.4rem;
           font-weight: 700;
           color: var(--tiffany-dark);
           margin: 0 0 4px;
@@ -268,6 +351,7 @@ export default function Home() {
           font-weight: 700;
           color: var(--text-primary);
           letter-spacing: 0.01em;
+          text-align: left;
         }
 
         .hf-input {
@@ -275,11 +359,11 @@ export default function Home() {
           padding: 13px 16px;
           background: var(--bg-primary);
           border: 1.5px solid var(--border);
-          border-radius: 12px;
+          border-radius: 14px;
           color: var(--text-primary);
           font-family: inherit;
           font-size: 0.95rem;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
           -webkit-appearance: none;
         }
 
@@ -369,7 +453,7 @@ export default function Home() {
         @media (min-width: 800px) {
           .home-page {
             max-width: 1050px;
-            padding: 100px 32px 60px;
+            padding: 110px 32px 60px;
             flex-direction: row;
             align-items: center;
             justify-content: center;
@@ -382,9 +466,17 @@ export default function Home() {
             text-align: left;
           }
 
+          .home-badge-row {
+            justify-content: flex-start;
+          }
+
           .home-subtitle {
             margin: 0;
-            max-width: 420px;
+            max-width: 440px;
+          }
+
+          .home-highlights-row {
+            justify-content: flex-start;
           }
 
           .home-features-list {
@@ -392,12 +484,12 @@ export default function Home() {
           }
 
           .home-login-card {
-            flex: 0 0 380px;
+            flex: 0 0 390px;
             padding: 36px 32px;
           }
 
           .hf-submit {
-            padding: 14px 20px;
+            padding: 15px 20px;
           }
         }
       `}</style>

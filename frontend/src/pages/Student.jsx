@@ -149,33 +149,77 @@ export default function Student() {
       <Navbar role="student" />
       <div className="page">
         <div className="container">
-          {/* Hero Banner */}
-          <div className="student-hero fade-in">
-            <div className="student-hero-left">
-              <div className="badge badge-green" style={{ marginBottom: 14 }}>
-                <i className="ph ph-check-circle"></i> {t('inClass')}
-              </div>
-              <h1 style={{ color: '#fff', marginBottom: 6 }}>{classData?.name}</h1>
-              {classData?.description && (
-                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '1rem', marginTop: 4 }}>
-                  {classData.description}
+          {/* Premium Hero Banner */}
+          <div className="student-hero-banner fade-in">
+            <div className="sh-glow-1"></div>
+            <div className="sh-glow-2"></div>
+
+            <div className="sh-content">
+              {/* Left Column: Class Info & Badges */}
+              <div className="sh-left">
+                <div className="sh-tags-row">
+                  <span className="sh-pill-badge sh-pill-active">
+                    <span className="sh-pulse-dot"></span>
+                    <i className="ph ph-check-circle"></i> {classData?.name || t('inClass')}
+                  </span>
+                  <span className="sh-pill-badge sh-pill-glass">
+                    🇬🇧 English Course
+                  </span>
+                </div>
+
+                <h1 className="sh-title">
+                  {classData?.name} — Англис тили
+                </h1>
+                
+                <p className="sh-subtitle">
+                  {classData?.description || 'Видео сабактарды көрүп, интерактивдүү оюндарды ойноп упай топтоңуз!'}
                 </p>
-              )}
-            </div>
-            <div className="student-hero-right">
-              <div className="student-avatar-icon">
-                <i className="ph ph-student"></i>
+
+                {/* Quick Stats Chips */}
+                <div className="sh-stats-grid">
+                  <div className="sh-stat-card">
+                    <span className="sh-stat-icon">🎬</span>
+                    <div>
+                      <div className="sh-stat-val">{videos.length}</div>
+                      <div className="sh-stat-lbl">Сабак</div>
+                    </div>
+                  </div>
+
+                  <div className="sh-stat-card">
+                    <span className="sh-stat-icon">🎮</span>
+                    <div>
+                      <div className="sh-stat-val">{games.length || 15}</div>
+                      <div className="sh-stat-lbl">Оюн</div>
+                    </div>
+                  </div>
+
+                  <div className="sh-stat-card">
+                    <span className="sh-stat-icon">⭐</span>
+                    <div>
+                      <div className="sh-stat-val">{leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP</div>
+                      <div className="sh-stat-lbl">Упайыңыз</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="student-hero-info">
-                <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#fff' }}>
-                  {t('hello')}, {studentData?.name}! 👋
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.88rem', marginTop: 4 }}>
-                  {videos.length} {t('lessonsAvailable')}
-                </div>
-                <div className="xp-pill">
-                  <i className="ph-fill ph-star"></i>
-                  {t('yourRating')}: {leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP
+
+              {/* Right Column: Student Profile Glass Card */}
+              <div className="sh-right">
+                <div className="sh-profile-card">
+                  <div className="sh-avatar-wrapper">
+                    <div className="sh-avatar">
+                      {(studentData?.name || 'О')[0].toUpperCase()}
+                    </div>
+                    <span className="sh-avatar-badge">🎓</span>
+                  </div>
+
+                  <div className="sh-profile-details">
+                    <div className="sh-greeting">{t('hello')}, 👋</div>
+                    <div className="sh-student-name">{studentData?.name || 'Окуучу'}</div>
+                    <div className="sh-class-chip">
+                      <i className="ph ph-chalkboard"></i> {classData?.name}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -510,16 +554,275 @@ export default function Student() {
       </div>
 
       <style>{`
-        .student-hero {
-          background: linear-gradient(135deg, #0ABAB5 0%, #089E9A 60%, #067370 100%);
-          border-radius: 20px;
-          padding: 36px 40px;
+        .student-hero-banner {
+          position: relative;
+          background: linear-gradient(135deg, #074744 0%, #087f7b 40%, #0abab5 75%, #15c7c2 100%);
+          border-radius: 24px;
+          padding: 32px 36px;
+          overflow: hidden;
+          box-shadow: 0 16px 40px rgba(10, 186, 181, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          margin-bottom: 8px;
+        }
+
+        .sh-glow-1 {
+          position: absolute;
+          width: 320px;
+          height: 320px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0) 70%);
+          top: -100px;
+          right: 15%;
+          pointer-events: none;
+        }
+
+        .sh-glow-2 {
+          position: absolute;
+          width: 250px;
+          height: 250px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(10, 186, 181, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
+          bottom: -80px;
+          left: 10%;
+          pointer-events: none;
+        }
+
+        .sh-content {
+          position: relative;
+          z-index: 2;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 24px;
-          box-shadow: 0 8px 32px rgba(10, 186, 181, 0.3);
+          gap: 32px;
           flex-wrap: wrap;
+        }
+
+        .sh-left {
+          flex: 1.2;
+          min-width: 280px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .sh-tags-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .sh-pill-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 100px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
+
+        .sh-pill-active {
+          background: rgba(255, 255, 255, 0.95);
+          color: #067370;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .sh-pill-glass {
+          background: rgba(255, 255, 255, 0.18);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          backdrop-filter: blur(8px);
+        }
+
+        .sh-pulse-dot {
+          width: 8px;
+          height: 8px;
+          background: #059669;
+          border-radius: 50%;
+          display: inline-block;
+          animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.6; }
+        }
+
+        .sh-title {
+          font-size: clamp(1.8rem, 3.5vw, 2.3rem);
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.15;
+          letter-spacing: -0.02em;
+          margin: 0;
+          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .sh-subtitle {
+          font-size: 0.95rem;
+          color: rgba(255, 255, 255, 0.88);
+          line-height: 1.5;
+          margin: 0;
+          max-width: 500px;
+        }
+
+        .sh-stats-grid {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 6px;
+          flex-wrap: wrap;
+        }
+
+        .sh-stat-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(255, 255, 255, 0.18);
+          border: 1px solid rgba(255, 255, 255, 0.28);
+          backdrop-filter: blur(10px);
+          padding: 8px 16px;
+          border-radius: 14px;
+          transition: transform 0.2s, background 0.2s;
+        }
+
+        .sh-stat-card:hover {
+          transform: translateY(-2px);
+          background: rgba(255, 255, 255, 0.26);
+        }
+
+        .sh-stat-icon {
+          font-size: 1.4rem;
+        }
+
+        .sh-stat-val {
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.1;
+        }
+
+        .sh-stat-lbl {
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.82);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .sh-right {
+          flex: 0 0 auto;
+        }
+
+        .sh-profile-card {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          background: rgba(255, 255, 255, 0.22);
+          border: 1.5px solid rgba(255, 255, 255, 0.38);
+          backdrop-filter: blur(14px);
+          padding: 16px 22px;
+          border-radius: 20px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .sh-avatar-wrapper {
+          position: relative;
+        }
+
+        .sh-avatar {
+          width: 58px;
+          height: 58px;
+          border-radius: 18px;
+          background: linear-gradient(135deg, #ffffff, #e0f7f6);
+          color: #087f7b;
+          font-size: 1.6rem;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+        }
+
+        .sh-avatar-badge {
+          position: absolute;
+          bottom: -4px;
+          right: -4px;
+          font-size: 1.1rem;
+          background: #ffffff;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .sh-profile-details {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .sh-greeting {
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.85);
+        }
+
+        .sh-student-name {
+          font-size: 1.2rem;
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.2;
+        }
+
+        .sh-class-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #d0f5f4;
+          margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+          .student-hero-banner {
+            padding: 22px 18px;
+            border-radius: 18px;
+          }
+          .sh-content {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 18px;
+          }
+          .sh-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+          }
+          .sh-stat-card {
+            padding: 8px 6px;
+            flex-direction: column;
+            text-align: center;
+            gap: 2px;
+          }
+          .sh-stat-icon {
+            font-size: 1.2rem;
+          }
+          .sh-stat-val {
+            font-size: 0.95rem;
+          }
+          .sh-stat-lbl {
+            font-size: 0.65rem;
+          }
+          .sh-profile-card {
+            padding: 14px 16px;
+          }
         }
 
         .seq-player-container {
