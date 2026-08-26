@@ -45,7 +45,7 @@ function VideoPlayerFrame({ url, title }) {
       <i className="ph-fill ph-video-camera" style={{ fontSize: '3rem', marginBottom: 12, opacity: 0.85 }}></i>
       <h4 style={{ color: '#fff', marginBottom: 12, fontSize: '1.1rem' }}>{title}</h4>
       <a href={url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#fff', color: 'var(--tiffany-dark)', fontWeight: 600 }}>
-        <i className="ph ph-arrow-square-out"></i> Видеону ачуу / Открыть видео
+        <i className="ph ph-arrow-square-out"></i> {t('openVideo')}
       </a>
     </div>
   );
@@ -89,16 +89,15 @@ export default function Student() {
       navigate('/');
       return;
     }
-    loadClass();
+    loadData();
 
-    // Отправляем активность каждые 60 секунд
-    const pingActivity = () => studentsAPI.sendActivity().catch(() => {});
-    pingActivity(); // сразу при входе
-    const interval = setInterval(pingActivity, 60000);
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadClass = async () => {
+  const loadData = async (silent = false) => {
     try {
       const [classRes, gamesRes, leadRes, actRes] = await Promise.all([
         studentsAPI.getClass(),
@@ -163,16 +162,16 @@ export default function Student() {
                     <i className="ph ph-check-circle"></i> {classData?.name || t('inClass')}
                   </span>
                   <span className="sh-pill-badge sh-pill-glass">
-                    🇬🇧 English Course
+                    {t('englishCourse')}
                   </span>
                 </div>
 
                 <h1 className="sh-title">
-                  {classData?.name} — Англис тили
+                  {classData?.name}
                 </h1>
                 
                 <p className="sh-subtitle">
-                  {classData?.description || 'Видео сабактарды көрүп, интерактивдүү оюндарды ойноп упай топтоңуз!'}
+                  {classData?.description || t('homeHeroSubtitle')}
                 </p>
 
                 {/* Quick Stats Chips */}
@@ -181,7 +180,7 @@ export default function Student() {
                     <span className="sh-stat-icon">🎬</span>
                     <div>
                       <div className="sh-stat-val">{videos.length}</div>
-                      <div className="sh-stat-lbl">Сабак</div>
+                      <div className="sh-stat-lbl">{t('lessons')}</div>
                     </div>
                   </div>
 
@@ -189,7 +188,7 @@ export default function Student() {
                     <span className="sh-stat-icon">🎮</span>
                     <div>
                       <div className="sh-stat-val">{games.length || 15}</div>
-                      <div className="sh-stat-lbl">Оюн</div>
+                      <div className="sh-stat-lbl">{t('games')}</div>
                     </div>
                   </div>
 
@@ -197,7 +196,7 @@ export default function Student() {
                     <span className="sh-stat-icon">⭐</span>
                     <div>
                       <div className="sh-stat-val">{leaderboard.find(s => s.id === studentData?.id)?.points || 0} XP</div>
-                      <div className="sh-stat-lbl">Упайыңыз</div>
+                      <div className="sh-stat-lbl">{t('yourPoints')}</div>
                     </div>
                   </div>
                 </div>
@@ -208,8 +207,8 @@ export default function Student() {
                 <div className="sh-teacher-mini-badge">
                   <img src="/teacher.jpg" alt="Мугалим Nazenglish" className="sh-t-img" />
                   <div>
-                    <div className="sh-t-role">Мугалим</div>
-                    <div className="sh-t-name">Nazenglish</div>
+                    <div className="sh-t-role">{t('teacher')}</div>
+                    <div className="sh-t-name">{t('teacherName')}</div>
                   </div>
                 </div>
 
@@ -223,7 +222,7 @@ export default function Student() {
 
                   <div className="sh-profile-details">
                     <div className="sh-greeting">{t('hello')}, 👋</div>
-                    <div className="sh-student-name">{studentData?.name || 'Окуучу'}</div>
+                    <div className="sh-student-name">{studentData?.name || t('student')}</div>
                     <div className="sh-class-chip">
                       <i className="ph ph-chalkboard"></i> {classData?.name}
                     </div>
@@ -253,7 +252,7 @@ export default function Student() {
                 <div>
                   <h2><i className="ph ph-video"></i> {t('videoLessons')}</h2>
                   <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                    Сабактарды кезеги менен көрүңүз / Смотрите уроки по порядку
+                    {t('watchLessonsInOrder')}
                   </p>
                 </div>
                 {videos.length > 0 && (
@@ -283,7 +282,7 @@ export default function Student() {
                         }}
                       >
                         <i className={`ph ${i === currentLessonIndex ? 'ph-play-circle' : 'ph-video'}`}></i>
-                        <span>{i + 1}-сабак</span>
+                        <span>{i + 1}-{t('lesson')}</span>
                       </button>
                     ))}
                   </div>
@@ -301,10 +300,10 @@ export default function Student() {
                       <div className="seq-card-body">
                         <div className="seq-meta-row">
                           <div className="badge badge-green" style={{ fontSize: '0.85rem' }}>
-                            <i className="ph ph-check-circle"></i> Сабак {currentLessonIndex + 1}
+                            <i className="ph ph-check-circle"></i> {t('lesson')} {currentLessonIndex + 1}
                           </div>
                           <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            {currentLessonIndex + 1} из {videos.length}
+                            {currentLessonIndex + 1} {t('ofTotal')} {videos.length}
                           </span>
                         </div>
 
@@ -326,7 +325,7 @@ export default function Student() {
                             onClick={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
                             style={{ minWidth: 160 }}
                           >
-                            <i className="ph ph-arrow-left"></i> Мурунку сабак
+                            <i className="ph ph-arrow-left"></i> {t('prevLesson')}
                           </button>
 
                           {currentLessonIndex < videos.length - 1 ? (
@@ -341,7 +340,7 @@ export default function Student() {
                               }}
                               style={{ minWidth: 160 }}
                             >
-                              Кийинки сабак <i className="ph ph-arrow-right"></i>
+                              {t('nextLesson')} <i className="ph ph-arrow-right"></i>
                             </button>
                           ) : (
                             <button
@@ -349,7 +348,7 @@ export default function Student() {
                               style={{ minWidth: 160, background: 'linear-gradient(135deg, #059669, #047857)' }}
                               onClick={() => setTab('games')}
                             >
-                              Оюндарга өтүү <i className="ph ph-game-controller"></i>
+                              {t('goToGames')} <i className="ph ph-game-controller"></i>
                             </button>
                           )}
                         </div>

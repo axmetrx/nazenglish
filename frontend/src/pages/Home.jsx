@@ -27,7 +27,7 @@ export default function Home() {
   const handleJoin = async (e) => {
     e.preventDefault();
     if (!name.trim() || !code.trim()) {
-      setError('Атыңызды жана кодду киргизиңиз');
+      setError(t('fillAllFields'));
       return;
     }
     setLoading(true);
@@ -39,16 +39,16 @@ export default function Home() {
       localStorage.setItem('student_data', JSON.stringify({ ...student, className: cls.name }));
       navigate('/student');
     } catch (err) {
-      setError(err.response?.data?.message || 'Кирүү катасы. Кодду текшериңиз.');
+      setError(err.response?.data?.message || t('loginError'));
     } finally {
       setLoading(false);
     }
   };
 
   const features = [
-    { icon: '🎬', text: 'Видео сабактар жана кызыктуу оюндар' },
-    { icon: '📱', text: 'Телефондо жана компьютерде иштейт' },
-    { icon: '⚡', text: 'Код аркылуу бат кирүү жана упай топтоо' },
+    { icon: '🎬', text: t('feature1') },
+    { icon: '📱', text: t('feature2') },
+    { icon: '⚡', text: t('feature3') },
   ];
 
   return (
@@ -65,44 +65,43 @@ export default function Home() {
               <span className="ht-badge">🌟</span>
             </div>
             <div className="ht-info">
-              <div className="ht-role">Мугалим / Преподаватель</div>
-              <div className="ht-name">Nazenglish</div>
-              <div className="ht-tag">🎓 238 видео сабак • 15 оюн</div>
+              <div className="ht-role">{t('teacher')}</div>
+              <div className="ht-name">{t('teacherName')}</div>
+              <div className="ht-tag">{t('teacherCourseTag')}</div>
             </div>
           </div>
 
           <div className="home-badge-row">
             <div className="home-badge-pill">
               <span className="home-badge-pulse"></span>
-              🇬🇧 Англис тили курсу
+              {t('englishCourse')}
             </div>
             <div className="home-badge-pill home-badge-light">
-              📚 3–9-класстар
+              {t('grades39')}
             </div>
           </div>
 
           <h1 className="home-title">
-            Англис тилин оңой<br />
-            жана кызыктуу <span className="gradient-text">үйрөнүңүз!</span>
+            {t('homeHeroTitle')}
           </h1>
 
           <p className="home-subtitle">
-            Мугалим берген класс кодун киргизип, бардык видео сабактарга жана интерактивдүү оюндарга дароо кириңиз.
+            {t('homeHeroSubtitle')}
           </p>
 
           {/* Quick Highlight Cards */}
           <div className="home-highlights-row">
             <div className="home-highlight-chip">
               <span className="hh-icon">🎬</span>
-              <span><strong>238</strong> сабак</span>
+              <span><strong>238</strong> {t('lessonsCountChip')}</span>
             </div>
             <div className="home-highlight-chip">
               <span className="hh-icon">🎮</span>
-              <span><strong>15</strong> оюн</span>
+              <span><strong>15</strong> {t('gamesCountChip')}</span>
             </div>
             <div className="home-highlight-chip">
               <span className="hh-icon">🏆</span>
-              <span><strong>XP</strong> рейтинг</span>
+              <span><strong>XP</strong> {t('ratingChip')}</span>
             </div>
           </div>
 
@@ -120,7 +119,7 @@ export default function Home() {
         <div className="home-login-card slide-up">
           <div className="home-login-header">
             <h2>{t('joinClass')}</h2>
-            <p>Класс кодун жана атыңызды жазыңыз</p>
+            <p>{t('enterCodeAndName')}</p>
           </div>
 
           <form onSubmit={handleJoin}>
@@ -130,7 +129,7 @@ export default function Home() {
                 id="student-name"
                 className="hf-input"
                 type="text"
-                placeholder="Мисалы: Айгүл Бакыт кызы"
+                placeholder={t('namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="off"
@@ -138,12 +137,12 @@ export default function Home() {
             </div>
 
             <div className="hf-group">
-              <label className="hf-label">Класс кодун киргизиңиз</label>
+              <label className="hf-label">{t('enterCode')}</label>
               <input
                 id="class-code"
                 className="hf-input hf-code"
                 type="text"
-                placeholder="ABC123"
+                placeholder={t('codePlaceholder')}
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 maxLength={10}
@@ -165,7 +164,7 @@ export default function Home() {
             >
               {loading ? (
                 <span className="hf-loading">
-                  <span className="hf-spinner" /> Кирүүдө...
+                  <span className="hf-spinner" /> {t('loggingIn')}
                 </span>
               ) : (
                 <>→ {t('joinClass')}</>
