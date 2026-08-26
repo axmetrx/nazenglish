@@ -58,13 +58,26 @@ export default function Home() {
       <div className="home-page">
         {/* ── Hero Section ── */}
         <div className="home-hero-section">
+          {/* Teacher Intro Banner */}
+          <div className="home-teacher-card slide-up">
+            <div className="ht-avatar-wrap">
+              <img src="/teacher.jpg" alt="Мугалим Nazenglish" className="ht-avatar-img" />
+              <span className="ht-badge">🌟</span>
+            </div>
+            <div className="ht-info">
+              <div className="ht-role">Мугалим / Преподаватель</div>
+              <div className="ht-name">Nazenglish</div>
+              <div className="ht-tag">🎓 238 видео сабак • 15 оюн</div>
+            </div>
+          </div>
+
           <div className="home-badge-row">
             <div className="home-badge-pill">
               <span className="home-badge-pulse"></span>
-              🎓 Англис тили
+              🇬🇧 Англис тили курсу
             </div>
             <div className="home-badge-pill home-badge-light">
-              🇬🇧 3–9 класстар
+              📚 3–9-класстар
             </div>
           </div>
 
@@ -74,14 +87,14 @@ export default function Home() {
           </h1>
 
           <p className="home-subtitle">
-            Мугалим берген класс кодун киргизип, 238 видео сабакка жана интерактивдүү оюндарга дароо кириңиз.
+            Мугалим берген класс кодун киргизип, бардык видео сабактарга жана интерактивдүү оюндарга дароо кириңиз.
           </p>
 
           {/* Quick Highlight Cards */}
           <div className="home-highlights-row">
             <div className="home-highlight-chip">
               <span className="hh-icon">🎬</span>
-              <span><strong>238</strong> видео</span>
+              <span><strong>238</strong> сабак</span>
             </div>
             <div className="home-highlight-chip">
               <span className="hh-icon">🎮</span>
@@ -104,7 +117,7 @@ export default function Home() {
         </div>
 
         {/* ── Login Card ── */}
-        <div className="home-login-card">
+        <div className="home-login-card slide-up">
           <div className="home-login-header">
             <h2>{t('joinClass')}</h2>
             <p>Класс кодун жана атыңызды жазыңыз</p>
@@ -182,9 +195,81 @@ export default function Home() {
           align-items: center;
           text-align: center;
           gap: 16px;
-          padding-top: 8px;
+          padding-top: 4px;
         }
 
+        /* ── Teacher Card ── */
+        .home-teacher-card {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          background: #ffffff;
+          border: 1.5px solid var(--border);
+          border-radius: 20px;
+          padding: 12px 20px 12px 14px;
+          box-shadow: 0 8px 24px rgba(10, 186, 181, 0.14);
+          margin-bottom: 4px;
+          text-align: left;
+        }
+
+        .ht-avatar-wrap {
+          position: relative;
+          flex-shrink: 0;
+        }
+
+        .ht-avatar-img {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2.5px solid var(--tiffany);
+          box-shadow: 0 4px 12px rgba(10, 186, 181, 0.25);
+          display: block;
+        }
+
+        .ht-badge {
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          font-size: 0.9rem;
+          background: #ffffff;
+          border-radius: 50%;
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        .ht-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .ht-role {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .ht-name {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: var(--tiffany-dark);
+          line-height: 1.2;
+        }
+
+        .ht-tag {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          font-weight: 600;
+        }
+
+        /* ── Badge Row ── */
         .home-badge-row {
           display: flex;
           align-items: center;
@@ -234,7 +319,7 @@ export default function Home() {
           font-size: 0.95rem;
           color: var(--text-secondary);
           line-height: 1.6;
-          max-width: 360px;
+          max-width: 380px;
           margin: 0 auto;
         }
 
@@ -464,6 +549,10 @@ export default function Home() {
             flex: 1.1;
             align-items: flex-start;
             text-align: left;
+          }
+
+          .home-teacher-card {
+            margin-bottom: 8px;
           }
 
           .home-badge-row {

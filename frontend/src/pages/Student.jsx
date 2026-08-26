@@ -203,8 +203,16 @@ export default function Student() {
                 </div>
               </div>
 
-              {/* Right Column: Student Profile Glass Card */}
+              {/* Right Column: Teacher & Student Profile Cards */}
               <div className="sh-right">
+                <div className="sh-teacher-mini-badge">
+                  <img src="/teacher.jpg" alt="Мугалим Nazenglish" className="sh-t-img" />
+                  <div>
+                    <div className="sh-t-role">Мугалим</div>
+                    <div className="sh-t-name">Nazenglish</div>
+                  </div>
+                </div>
+
                 <div className="sh-profile-card">
                   <div className="sh-avatar-wrapper">
                     <div className="sh-avatar">
@@ -714,6 +722,43 @@ export default function Student() {
 
         .sh-right {
           flex: 0 0 auto;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .sh-teacher-mini-badge {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(255, 255, 255, 0.18);
+          border: 1.5px solid rgba(255, 255, 255, 0.3);
+          backdrop-filter: blur(12px);
+          padding: 8px 14px 8px 8px;
+          border-radius: 100px;
+        }
+
+        .sh-t-img {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #ffffff;
+        }
+
+        .sh-t-role {
+          font-size: 0.7rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.8);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .sh-t-name {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: #ffffff;
         }
 
         .sh-profile-card {
