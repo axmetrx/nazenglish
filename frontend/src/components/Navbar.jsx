@@ -84,11 +84,13 @@ export default function Navbar({ role = 'guest' }) {
           </>
         )}
         {role === 'guest' && (
-          <Link to="/admin/login" className="btn btn-secondary btn-sm">
-            {t('loginAsTeacher')}
+          <Link to="/admin/login" className="btn btn-secondary btn-sm navbar-teacher-btn">
+            <i className="ph ph-chalkboard-teacher"></i>
+            <span className="navbar-teacher-label">{t('loginAsTeacher')}</span>
           </Link>
         )}
       </div>
     </nav>
   );
 }
+

@@ -299,6 +299,22 @@ a:hover { color: var(--accent-hover); }
 }
 .navbar-user i { color: rgba(255,255,255,0.75); }
 
+/* Teacher login btn: icon only on small screens, full label on 480px+ */
+.navbar-teacher-btn {
+  background: rgba(255,255,255,0.2) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.4) !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.navbar-teacher-label {
+  display: none;
+}
+@media (min-width: 420px) {
+  .navbar-teacher-label { display: inline; }
+}
+
 /* ─── Tabs ────────────────────────────────────────────────────── */
 .cp-tabs {
   display: flex;
