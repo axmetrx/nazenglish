@@ -81,14 +81,6 @@ export default function Home() {
           </div>
         </div>
 
-          <section className="photo-banner" aria-label="Photo banner">
-            <span className="photo-banner-icon" aria-hidden="true">&#128247;</span>
-            <div>
-              <h2>{'\u0417\u0434\u0435\u0441\u044c \u0431\u0443\u0434\u0435\u0442 \u0444\u043e\u0442\u043e\u0433\u0440\u0430\u0444\u0438\u044f'}</h2>
-              <p>{'\u041e\u0442\u043f\u0440\u0430\u0432\u044c\u0442\u0435 \u0444\u043e\u0442\u043e \u2014 \u044f \u0434\u043e\u0431\u0430\u0432\u043b\u044e \u0435\u0433\u043e \u0432 \u044d\u0442\u043e\u0442 \u0431\u0430\u043d\u043d\u0435\u0440.'}</p>
-            </div>
-          </section>
-
         {/* ── Login Card ── */}
         <div className="home-login-card">
           <div className="home-login-header">
@@ -236,38 +228,6 @@ export default function Home() {
           line-height: 1.4;
         }
 
-
-        .photo-banner {
-          width: 100%;
-          min-height: 110px;
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 18px;
-          background: linear-gradient(135deg, var(--tiffany-xlight), #fff);
-          border: 2px dashed var(--tiffany);
-          border-radius: 16px;
-          color: var(--tiffany-dark);
-          text-align: left;
-        }
-
-        .photo-banner-icon {
-          font-size: 2.3rem;
-          flex-shrink: 0;
-        }
-
-        .photo-banner h2 {
-          margin: 0 0 4px;
-          color: var(--tiffany-dark);
-          font-size: 1rem;
-        }
-
-        .photo-banner p {
-          margin: 0;
-          color: var(--text-secondary);
-          font-size: 0.84rem;
-          line-height: 1.4;
-        }
 
         /* ── Login card ── */
         .home-login-card {
