@@ -10,6 +10,47 @@ import PronunciationGame from '../components/PronunciationGame';
 import ActivityChart from '../components/ActivityChart';
 import { t } from '../utils/translations';
 
+function VideoPlayerFrame({ url, title }) {
+  if (!url) return null;
+  let embedUrl = null;
+
+  let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
+  if (match) embedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+
+  if (!embedUrl) {
+    match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
+    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0`;
+  }
+  if (!embedUrl) {
+    match = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
+    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+  }
+  if (!embedUrl && url.includes('drive.google.com') && url.includes('preview')) embedUrl = url;
+  if (!embedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com'))) embedUrl = url;
+
+  if (embedUrl) {
+    return (
+      <iframe
+        src={embedUrl}
+        title={title}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'linear-gradient(135deg, var(--tiffany), var(--tiffany-darker))', color: '#fff', padding: 24, textAlign: 'center' }}>
+      <i className="ph-fill ph-video-camera" style={{ fontSize: '3rem', marginBottom: 12, opacity: 0.85 }}></i>
+      <h4 style={{ color: '#fff', marginBottom: 12, fontSize: '1.1rem' }}>{title}</h4>
+      <a href={url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#fff', color: 'var(--tiffany-dark)', fontWeight: 600 }}>
+        <i className="ph ph-arrow-square-out"></i> Видеону ачуу / Открыть видео
+      </a>
+    </div>
+  );
+}
+
 export default function Student() {
   const [classData, setClassData] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -18,6 +59,7 @@ export default function Student() {
   const [weeklyActivity, setWeeklyActivity] = useState([]);
   const [activeGame, setActiveGame] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [, setLangTick] = useState(0);
 
   useEffect(() => {
@@ -152,34 +194,119 @@ export default function Student() {
             </button>
           </div>
 
-          {/* Videos Tab */}
+          {/* Videos Tab: One by One Sequential Lesson Player */}
           {tab === 'videos' && (
             <div className="fade-in">
-              <div className="section-header">
-                <h2><i className="ph ph-video"></i> {t('videoLessons')}</h2>
-                <span className="badge badge-blue">{videos.length}</span>
+              <div className="section-header" style={{ marginBottom: 20 }}>
+                <div>
+                  <h2><i className="ph ph-video"></i> {t('videoLessons')}</h2>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                    Сабактарды кезеги менен көрүңүз / Смотрите уроки по порядку
+                  </p>
+                </div>
+                {videos.length > 0 && (
+                  <div className="badge badge-purple" style={{ fontSize: '0.95rem', padding: '6px 14px' }}>
+                    <i className="ph ph-film-strip"></i> {currentLessonIndex + 1} / {videos.length} {t('lessons')}
+                  </div>
+                )}
               </div>
 
-          {videos.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon"><i className="ph ph-film-strip"></i></div>
-              <h3>{t('noLessons')}</h3>
-              <p>{t('teacherNotAdded')}</p>
+              {videos.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon"><i className="ph ph-film-strip"></i></div>
+                  <h3>{t('noLessons')}</h3>
+                  <p>{t('teacherNotAdded')}</p>
+                </div>
+              ) : (
+                <div className="seq-player-container">
+                  {/* Lesson Pills Switcher */}
+                  <div className="seq-pills-bar">
+                    {videos.map((v, i) => (
+                      <button
+                        key={v.id || i}
+                        className={`seq-pill-btn ${i === currentLessonIndex ? 'active' : ''}`}
+                        onClick={() => {
+                          setCurrentLessonIndex(i);
+                          studentsAPI.markVideoWatched(v.id).catch(() => {});
+                        }}
+                      >
+                        <i className={`ph ${i === currentLessonIndex ? 'ph-play-circle' : 'ph-video'}`}></i>
+                        <span>{i + 1}-сабак</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Main Active Lesson Player Card */}
+                  {videos[currentLessonIndex] && (
+                    <div className="seq-active-card">
+                      <div className="seq-video-frame">
+                        <VideoPlayerFrame
+                          url={videos[currentLessonIndex].url}
+                          title={videos[currentLessonIndex].title}
+                        />
+                      </div>
+
+                      <div className="seq-card-body">
+                        <div className="seq-meta-row">
+                          <div className="badge badge-green" style={{ fontSize: '0.85rem' }}>
+                            <i className="ph ph-check-circle"></i> Сабак {currentLessonIndex + 1}
+                          </div>
+                          <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            {currentLessonIndex + 1} из {videos.length}
+                          </span>
+                        </div>
+
+                        <h3 className="seq-title">
+                          {videos[currentLessonIndex].title}
+                        </h3>
+
+                        {videos[currentLessonIndex].description && (
+                          <p className="seq-description">
+                            {videos[currentLessonIndex].description}
+                          </p>
+                        )}
+
+                        {/* Navigation Buttons: Previous / Next */}
+                        <div className="seq-nav-actions">
+                          <button
+                            className="btn btn-secondary"
+                            disabled={currentLessonIndex === 0}
+                            onClick={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
+                            style={{ minWidth: 160 }}
+                          >
+                            <i className="ph ph-arrow-left"></i> Мурунку сабак
+                          </button>
+
+                          {currentLessonIndex < videos.length - 1 ? (
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => {
+                                const nextIdx = currentLessonIndex + 1;
+                                setCurrentLessonIndex(nextIdx);
+                                if (videos[nextIdx]) {
+                                  studentsAPI.markVideoWatched(videos[nextIdx].id).catch(() => {});
+                                }
+                              }}
+                              style={{ minWidth: 160 }}
+                            >
+                              Кийинки сабак <i className="ph ph-arrow-right"></i>
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-primary"
+                              style={{ minWidth: 160, background: 'linear-gradient(135deg, #059669, #047857)' }}
+                              onClick={() => setTab('games')}
+                            >
+                              Оюндарга өтүү <i className="ph ph-game-controller"></i>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="grid-3">
-              {videos.map((video, i) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  index={i}
-                  showActions={false}
-                  onPlay={() => studentsAPI.markVideoWatched(video.id).catch(() => {})}
-                />
-              ))}
-            </div>
-          )}
-          </div>
           )}
 
           {/* Games Tab */}
@@ -392,6 +519,100 @@ export default function Student() {
           justify-content: space-between;
           gap: 24px;
           box-shadow: 0 8px 32px rgba(10, 186, 181, 0.3);
+          flex-wrap: wrap;
+        }
+
+        .seq-player-container {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .seq-pills-bar {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          padding-bottom: 8px;
+          scrollbar-width: thin;
+        }
+
+        .seq-pill-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          border-radius: 100px;
+          border: 1.5px solid var(--border);
+          background: #fff;
+          color: var(--text-primary);
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+        }
+
+        .seq-pill-btn:hover {
+          border-color: var(--tiffany);
+          background: var(--tiffany-xlight);
+        }
+
+        .seq-pill-btn.active {
+          background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
+          color: #fff;
+          border-color: transparent;
+          box-shadow: 0 4px 14px rgba(10, 186, 181, 0.35);
+        }
+
+        .seq-active-card {
+          background: #ffffff;
+          border: 1.5px solid var(--border);
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: var(--shadow-sm);
+        }
+
+        .seq-video-frame {
+          width: 100%;
+          aspect-ratio: 16/9;
+          background: #000;
+        }
+
+        .seq-card-body {
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .seq-meta-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .seq-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .seq-description {
+          font-size: 0.95rem;
+          color: var(--text-secondary);
+          line-height: 1.6;
+          margin: 0;
+        }
+
+        .seq-nav-actions {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 8px;
+          padding-top: 18px;
+          border-top: 1px solid var(--border);
           flex-wrap: wrap;
         }
       `}</style>
