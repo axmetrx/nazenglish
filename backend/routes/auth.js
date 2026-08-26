@@ -65,17 +65,22 @@ router.post('/guest', async (req, res) => {
     const { code } = req.body;
     const SECRET_CODE = process.env.TEACHER_CODE || '7777';
 
-    if (code !== SECRET_CODE) {
+    if (!code || code.toString().trim() !== SECRET_CODE.toString().trim()) {
       return res.status(401).json({ message: 'Неверный секретный код' });
     }
 
-    const email = 'teacher@englishclass.com';
-    let teacher = await teacherStore.findByEmail(email);
-    
-    if (!teacher) {
-      const password_hash = await bcrypt.hash('nopassword123', 10);
-      teacher = await teacherStore.create({ name: 'Преподаватель', email, password: password_hash });
-    }
+    const email = 'teacher@nazenglish.com';
+    const password_hash = await bcrypt.hash('nazenglish_guest_pass', 10);
+
+    // UPSERT: insert or get existing guest teacher
+    const { rows } = await require('../db').query(
+      `INSERT INTO teachers (name, email, password)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+       RETURNING *`,
+      ['Преподаватель', email, password_hash]
+    );
+    const teacher = rows[0];
 
     const token = jwt.sign(
       { id: teacher.id, email: teacher.email, name: teacher.name },
@@ -85,6 +90,7 @@ router.post('/guest', async (req, res) => {
 
     res.json({ token, teacher: { id: teacher.id, name: teacher.name, email: teacher.email } });
   } catch (err) {
+    console.error('❌ /auth/guest error:', err.message, err.stack);
     res.status(500).json({ message: 'Ошибка сервера', error: err.message });
   }
 });
