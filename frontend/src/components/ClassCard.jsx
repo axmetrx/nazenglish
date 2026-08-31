@@ -12,15 +12,6 @@ export default function ClassCard({ cls, onDelete }) {
     <div className="cls-card card slide-up" onClick={() => navigate(`/admin/class/${cls.id}`)}>
       <div className="cls-card-top">
         <div className="cls-icon"><i className="ph ph-books"></i></div>
-        <div className="cls-menu">
-          <button
-            className="btn btn-danger btn-sm"
-            onClick={(e) => { e.stopPropagation(); onDelete(cls.id); }}
-            title="Удалить класс"
-          >
-            <i className="ph ph-trash"></i>
-          </button>
-        </div>
       </div>
 
       <h3 className="cls-name">{cls.name}</h3>
