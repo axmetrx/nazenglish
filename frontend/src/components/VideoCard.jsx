@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 // Конвертирует YouTube / Vimeo / Google Drive / Telegram URL в embed URL
 function getEmbedUrl(url) {
   if (!url) return null;
@@ -44,9 +46,13 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
   const embedUrl = getEmbedUrl(video.url);
   const thumbnail = getYoutubeThumbnail(video.url);
 
+  const driveMatch = video.url ? video.url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/) : null;
+  const driveFileId = driveMatch ? driveMatch[1] : null;
+  const streamUrl = driveFileId ? `${API_BASE_URL}/videos/stream/${driveFileId}` : null;
+
   const handlePlayClick = () => {
     if (onPlay) onPlay();
-    if (embedUrl) {
+    if (streamUrl || embedUrl) {
       setShowModal(true);
     } else {
       window.open(video.url, '_blank');
@@ -76,11 +82,11 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           {/* Play button */}
           <div className="vc-play-wrap">
             <div className="vc-play-btn">
-              {embedUrl
+              {streamUrl || embedUrl
                 ? <i className="ph-fill ph-play"></i>
                 : <i className="ph-fill ph-arrow-square-out"></i>}
             </div>
-            <span className="vc-play-label">{embedUrl ? 'Көрүү' : 'Ачуу'}</span>
+            <span className="vc-play-label">{streamUrl || embedUrl ? 'Көрүү' : 'Ачуу'}</span>
           </div>
         </div>
 
@@ -95,7 +101,6 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           </button>
         </div>
 
-        {/* Teacher actions */}
         {showActions && (
           <div className="vc-actions">
             <button className="vc-act-btn edit" onClick={() => onEdit(video)} title="Редактировать">
@@ -126,13 +131,24 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
               </button>
             </div>
 
-            <div className="vm-player-frame">
-              <iframe
-                src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
-                title={video.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+            <div className="vm-player-frame" style={{ background: '#000' }}>
+              {streamUrl ? (
+                <video
+                  src={streamUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  webkit-playsinline="true"
+                  style={{ width: '100%', height: '100%', display: 'block' }}
+                />
+              ) : (
+                <iframe
+                  src={`${embedUrl}${embedUrl && embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+                  title={video.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
             </div>
           </div>
         </div>

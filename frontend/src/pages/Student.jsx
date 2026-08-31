@@ -10,35 +10,41 @@ import PronunciationGame from '../components/PronunciationGame';
 import ActivityChart from '../components/ActivityChart';
 import { t } from '../utils/translations';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
-  const [iframeError, setIframeError] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [useIframeFallback, setUseIframeFallback] = useState(false);
   const playerBoxRef = useRef(null);
+  const videoRef = useRef(null);
 
-  let embedUrl = null;
-  let directUrl = url;
   let driveFileId = null;
+  let youtubeEmbedUrl = null;
+  let directUrl = url;
 
   // Google Drive
   let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
   if (match) {
     driveFileId = match[1];
-    embedUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
     directUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
   }
 
   // YouTube
-  if (!embedUrl) {
-    match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
-    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0&playsinline=1`;
-  }
-  if (!embedUrl) {
+  match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
+  if (match) youtubeEmbedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0&playsinline=1`;
+
+  if (!youtubeEmbedUrl) {
     match = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
-    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?playsinline=1`;
+    if (match) youtubeEmbedUrl = `https://www.youtube.com/embed/${match[1]}?playsinline=1`;
   }
-  if (!embedUrl && url.includes('drive.google.com') && url.includes('preview')) embedUrl = url;
-  if (!embedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com'))) embedUrl = url;
+  if (!youtubeEmbedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com'))) {
+    youtubeEmbedUrl = url;
+  }
+
+  // Direct backend stream URL for Google Drive (bypasses Google embed quota & login prompts)
+  const streamUrl = driveFileId ? `${API_BASE_URL}/videos/stream/${driveFileId}` : null;
+  const drivePreviewUrl = driveFileId ? `https://drive.google.com/file/d/${driveFileId}/preview` : null;
 
   // Fullscreen event listener
   useEffect(() => {
@@ -66,38 +72,48 @@ function VideoPlayerFrame({ url, title }) {
   }, []);
 
   const toggleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen().catch(() => {});
+        return;
+      } else if (videoRef.current.webkitEnterFullscreen) {
+        videoRef.current.webkitEnterFullscreen();
+        return;
+      }
+    }
     if (!playerBoxRef.current) return;
     const el = playerBoxRef.current;
-
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => {});
-      } else if (el.webkitRequestFullscreen) {
-        el.webkitRequestFullscreen();
-      } else if (el.mozRequestFullScreen) {
-        el.mozRequestFullScreen();
-      } else if (el.msRequestFullscreen) {
-        el.msRequestFullscreen();
-      }
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
     } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      } else if (document.mozCancelFullScreen) {
-        document.mozCancelFullScreen();
-      } else if (document.msExitFullscreen) {
-        document.msExitFullscreen();
-      }
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
     }
   };
 
   return (
     <div ref={playerBoxRef} className={`video-player-box ${isFullscreen ? 'is-fullscreen' : ''}`}>
-      {/* Video frame or fallback */}
-      {embedUrl && !iframeError ? (
+      {/* 1. Google Drive direct HTML5 video stream (Plays natively inside the website without sign-in errors) */}
+      {streamUrl && !useIframeFallback ? (
+        <video
+          ref={videoRef}
+          src={streamUrl}
+          controls
+          playsInline
+          webkit-playsinline="true"
+          preload="metadata"
+          className="video-player-frame"
+          style={{ width: '100%', aspectRatio: '16/9', background: '#000', display: 'block' }}
+          onError={() => {
+            console.warn('Native video error, switching to iframe player fallback');
+            setUseIframeFallback(true);
+          }}
+        />
+      ) : youtubeEmbedUrl ? (
+        /* 2. YouTube / Vimeo Player */
         <iframe
-          src={embedUrl}
+          src={youtubeEmbedUrl}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowFullScreen={true}
@@ -105,10 +121,21 @@ function VideoPlayerFrame({ url, title }) {
           mozallowfullscreen="true"
           loading="eager"
           className="video-player-frame"
-          onError={() => setIframeError(true)}
+        />
+      ) : drivePreviewUrl ? (
+        /* 3. Google Drive Iframe Fallback */
+        <iframe
+          src={drivePreviewUrl}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+          allowFullScreen={true}
+          webkitallowfullscreen="true"
+          mozallowfullscreen="true"
+          loading="eager"
+          className="video-player-frame"
         />
       ) : (
-        /* Fallback: big play button that opens video directly */
+        /* 4. Link Fallback */
         <a
           href={directUrl}
           target="_blank"
@@ -144,16 +171,16 @@ function VideoPlayerFrame({ url, title }) {
         </button>
 
         {driveFileId && (
-          <a
-            href={`https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="vdf-btn vdf-drive-btn"
-            title="Эгер видео ачылбаса, түздөн-түз көрүү"
+            onClick={() => setUseIframeFallback(prev => !prev)}
+            title="Плеердин түрүн алмаштыруу"
+            style={{ fontSize: '0.82rem' }}
           >
-            <i className="ph-bold ph-arrow-square-out"></i>
-            <span>Түздөн-түз көрүү ↗</span>
-          </a>
+            <i className="ph ph-arrows-clockwise"></i>
+            <span>{useIframeFallback ? '🎬 Нативдүү плеер' : '🔄 Режим алмаштыруу'}</span>
+          </button>
         )}
       </div>
     </div>

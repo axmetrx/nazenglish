@@ -68,11 +68,61 @@ router.delete('/item/:id', auth, async (req, res) => {
     if (cls.teacherId !== req.teacher.id)
       return res.status(403).json({ message: 'Нет доступа' });
 
-    await videoStore.delete(req.params.id);
-    res.json({ message: 'Видео удалено' });
-  } catch (err) {
-    res.status(500).json({ message: 'Ошибка сервера' });
+// GET /api/videos/stream/:fileId — прямой стриминг видео с Google Диска в нативный HTML5 <video> плеер
+router.get('/stream/:fileId', (req, res) => {
+  const fileId = req.params.fileId;
+  if (!fileId || !/^[a-zA-Z0-9_-]+$/.test(fileId)) {
+    return res.status(400).send('Invalid file ID');
   }
+
+  const https = require('https');
+  const googleUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+  const headers = {};
+  if (req.headers.range) {
+    headers['Range'] = req.headers.range;
+  }
+
+  const clientReq = https.get(googleUrl, { headers }, (gRes) => {
+    if (gRes.statusCode === 301 || gRes.statusCode === 302 || gRes.statusCode === 303 || gRes.statusCode === 307) {
+      const redirectUrl = gRes.headers.location;
+      if (redirectUrl) {
+        return https.get(redirectUrl, { headers }, (rRes) => {
+          pipeVideo(rRes, res);
+        }).on('error', (err) => {
+          if (!res.headersSent) res.status(500).send(err.message);
+        });
+      }
+    }
+
+    pipeVideo(gRes, res);
+  });
+
+  clientReq.on('error', (err) => {
+    if (!res.headersSent) res.status(500).send(err.message);
+  });
+
+  req.on('close', () => {
+    clientReq.destroy();
+  });
 });
+
+function pipeVideo(gRes, res) {
+  const statusCode = gRes.statusCode === 206 ? 206 : 200;
+  const headers = {
+    'Content-Type': 'video/mp4',
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=86400',
+  };
+
+  if (gRes.headers['content-range']) {
+    headers['Content-Range'] = gRes.headers['content-range'];
+  }
+  if (gRes.headers['content-length']) {
+    headers['Content-Length'] = gRes.headers['content-length'];
+  }
+
+  res.writeHead(statusCode, headers);
+  gRes.pipe(res);
+}
 
 module.exports = router;
