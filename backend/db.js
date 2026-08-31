@@ -101,7 +101,20 @@ const initDB = async () => {
         game_id UUID REFERENCES games(id) ON DELETE CASCADE,
         score INTEGER DEFAULT 0,
         completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(student_id, game_id)
+        PRIMARY KEY (student_id, game_id)
+      )
+    `);
+
+    // Dictionary words table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS dictionary_words (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+        word VARCHAR(255) NOT NULL,
+        translation VARCHAR(255) NOT NULL,
+        category VARCHAR(255) DEFAULT 'Жалпы / Общий',
+        example TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

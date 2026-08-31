@@ -21,6 +21,7 @@ app.use('/api/classes', require('./routes/classes'));
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/games', require('./routes/games'));
+app.use('/api/dictionary', require('./routes/dictionary'));
 
 // ─── Health check ────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

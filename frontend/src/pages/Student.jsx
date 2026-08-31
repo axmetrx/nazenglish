@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentsAPI, gamesAPI } from '../api/api';
+import { studentsAPI, gamesAPI, dictionaryAPI } from '../api/api';
 import VideoCard from '../components/VideoCard';
 import Navbar from '../components/Navbar';
 import MatchGame from '../components/MatchGame';
@@ -185,7 +185,14 @@ export default function Student() {
     { type: 'quiz', label: t('quiz'), emoji: '📖', xp: '+20 XP', desc: t('quizDesc') },
     { type: 'pronunciation', label: t('pronunciation'), emoji: '🎤', xp: '+25 XP', desc: t('pronunciationDesc') },
   ];
-  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'leaderboard'
+  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'dictionary' | 'leaderboard'
+  const [dictionaryWords, setDictionaryWords] = useState([]);
+  const [dictSearch, setDictSearch] = useState('');
+  const [dictCategoryFilter, setDictCategoryFilter] = useState('all');
+  const [dictViewMode, setDictViewMode] = useState('cards'); // 'cards' | 'flashcards'
+  const [flashcardIndex, setFlashcardIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -194,6 +201,15 @@ export default function Student() {
     try { return JSON.parse(localStorage.getItem('student_data')); }
     catch { return null; }
   })();
+
+  const speakWord = (text) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85;
+    window.speechSynthesis.speak(utterance);
+  };
 
   useEffect(() => {
     if (!localStorage.getItem('student_token')) {
@@ -210,11 +226,12 @@ export default function Student() {
 
   const loadData = async (silent = false) => {
     try {
-      const [classRes, gamesRes, leadRes, actRes] = await Promise.all([
+      const [classRes, gamesRes, leadRes, actRes, dictRes] = await Promise.all([
         studentsAPI.getClass(),
         gamesAPI.getForStudent(),
         studentsAPI.getLeaderboard(),
-        studentsAPI.getWeeklyActivity()
+        studentsAPI.getWeeklyActivity(),
+        dictionaryAPI.getForStudent().catch(() => ({ data: [] })),
       ]);
       setClassData(classRes.data.class);
       setVideos(classRes.data.videos);
@@ -224,6 +241,7 @@ export default function Student() {
       setGames(gamesRes.data);
       setLeaderboard(leadRes.data);
       setWeeklyActivity(actRes.data);
+      setDictionaryWords(dictRes.data || []);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 404) {
         localStorage.removeItem('student_token');
@@ -403,6 +421,9 @@ export default function Student() {
             </button>
             <button className={`tab ${tab === 'games' ? 'active' : ''}`} onClick={() => { setTab('games'); setActiveGame(null); }}>
               <i className="ph ph-game-controller"></i> {t('games')}
+            </button>
+            <button className={`tab ${tab === 'dictionary' ? 'active' : ''}`} onClick={() => { setTab('dictionary'); setActiveGame(null); }}>
+              <i className="ph ph-book-open"></i> {t('dictionary')}
             </button>
             <button className={`tab ${tab === 'leaderboard' ? 'active' : ''}`} onClick={() => { setTab('leaderboard'); setActiveGame(null); }}>
               <i className="ph ph-trophy"></i> {t('leaderboard')}
@@ -740,6 +761,237 @@ export default function Student() {
                 if (activeGame.type === 'quiz') return <QuizGame game={activeGame} onComplete={completeHandler} />;
                 if (activeGame.type === 'pronunciation') return <PronunciationGame game={activeGame} onComplete={completeHandler} />;
                 return <MatchGame game={activeGame} onComplete={completeHandler} />;
+              })()}
+            </div>
+          )}
+
+          {/* Dictionary Tab */}
+          {tab === 'dictionary' && (
+            <div className="fade-in">
+              <div className="section-header" style={{ marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h2><i className="ph ph-book-open"></i> {t('dictionary')}</h2>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                    {t('dictionaryDesc')}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Mode switcher: Cards vs Flashcards */}
+                  <div className="dict-mode-toggle">
+                    <button
+                      type="button"
+                      className={`dict-mode-btn ${dictViewMode === 'cards' ? 'active' : ''}`}
+                      onClick={() => setDictViewMode('cards')}
+                    >
+                      🗂️ Карточкалар
+                    </button>
+                    <button
+                      type="button"
+                      className={`dict-mode-btn ${dictViewMode === 'flashcards' ? 'active' : ''}`}
+                      onClick={() => { setDictViewMode('flashcards'); setFlashcardIndex(0); setIsFlipped(false); }}
+                    >
+                      🔄 Флеш-карталар (Тренировка)
+                    </button>
+                  </div>
+                  <div className="badge badge-purple" style={{ fontSize: '0.95rem', padding: '6px 14px' }}>
+                    {dictionaryWords.length} {t('wordsCount')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Search & Topic Filters */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={`🔍 ${t('searchWord')}`}
+                    value={dictSearch}
+                    onChange={(e) => { setDictSearch(e.target.value); setFlashcardIndex(0); setIsFlipped(false); }}
+                  />
+                  {dictSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDictSearch('')}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Category selector */}
+                {(() => {
+                  const uniqueCategories = ['all', ...Array.from(new Set(dictionaryWords.map(w => w.category || 'Жалпы / Общий')))];
+                  return (
+                    <select
+                      className="form-input"
+                      value={dictCategoryFilter}
+                      onChange={(e) => { setDictCategoryFilter(e.target.value); setFlashcardIndex(0); setIsFlipped(false); }}
+                      style={{ width: 'auto', minWidth: 180, fontWeight: 600 }}
+                    >
+                      <option value="all">✨ {t('allTopics')} ({dictionaryWords.length})</option>
+                      {uniqueCategories.filter(c => c !== 'all').map(cat => {
+                        const count = dictionaryWords.filter(w => (w.category || 'Жалпы / Общий') === cat).length;
+                        return (
+                          <option key={cat} value={cat}>
+                            📁 {cat} ({count})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              {(() => {
+                const q = dictSearch.toLowerCase().trim();
+                const filtered = dictionaryWords.filter(w => {
+                  const matchCat = dictCategoryFilter === 'all' || (w.category || 'Жалпы / Общий') === dictCategoryFilter;
+                  const matchSearch = !q || (w.word || '').toLowerCase().includes(q) || (w.translation || '').toLowerCase().includes(q);
+                  return matchCat && matchSearch;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="empty-state">
+                      <div className="empty-state-icon"><i className="ph ph-book-open"></i></div>
+                      <h3>{dictionaryWords.length === 0 ? t('noWords') : 'Сөз табылган жок / Ничего не найдено'}</h3>
+                      <p>
+                        {dictionaryWords.length === 0
+                          ? 'Мугалим жакында сөздүктү толуктайт!'
+                          : 'Башка сөздү же категорияны тандап көрүңүз'}
+                      </p>
+                    </div>
+                  );
+                }
+
+                // ── Mode 1: Interactive Flashcards (Training) ──
+                if (dictViewMode === 'flashcards') {
+                  const currentWord = filtered[flashcardIndex] || filtered[0];
+                  return (
+                    <div className="flashcard-container fade-in">
+                      <div className="flashcard-progress-bar">
+                        <span>Сөз: <strong>{flashcardIndex + 1}</strong> / {filtered.length}</span>
+                        <div className="flashcard-dots">
+                          {filtered.slice(0, 15).map((_, idx) => (
+                            <span
+                              key={idx}
+                              className={`fc-dot ${idx === flashcardIndex ? 'active' : idx < flashcardIndex ? 'done' : ''}`}
+                              onClick={() => { setFlashcardIndex(idx); setIsFlipped(false); }}
+                            />
+                          ))}
+                          {filtered.length > 15 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+{filtered.length - 15}</span>}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`student-flashcard ${isFlipped ? 'flipped' : ''}`}
+                        onClick={() => setIsFlipped(!isFlipped)}
+                      >
+                        <div className="fc-inner">
+                          {/* FRONT */}
+                          <div className="fc-side fc-front">
+                            <div className="fc-category-badge">{currentWord.category || 'Жалпы'}</div>
+                            <div className="fc-word-large">{currentWord.word}</div>
+                            <button
+                              type="button"
+                              className="fc-speak-btn"
+                              onClick={(e) => { e.stopPropagation(); speakWord(currentWord.word); }}
+                              title="Угуу / Послушать"
+                            >
+                              🔊 {t('listenAudio')}
+                            </button>
+                            <div className="fc-hint-text">
+                              👆 Басып котормосун көрүңүз / Нажмите, чтобы перевернуть
+                            </div>
+                          </div>
+
+                          {/* BACK */}
+                          <div className="fc-side fc-back">
+                            <div className="fc-category-badge">{currentWord.category || 'Жалпы'}</div>
+                            <div className="fc-translation-large">{currentWord.translation}</div>
+                            <div className="fc-word-sub">{currentWord.word}</div>
+                            {currentWord.example && (
+                              <div className="fc-example-box">
+                                💬 "{currentWord.example}"
+                              </div>
+                            )}
+                            <div className="fc-hint-text">
+                              🔄 Кайра оодаруу / Нажмите, чтобы перевернуть
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Navigation Controls */}
+                      <div className="flashcard-nav-row">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            setFlashcardIndex(prev => (prev > 0 ? prev - 1 : filtered.length - 1));
+                            setIsFlipped(false);
+                          }}
+                        >
+                          👈 Мурункусу
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => {
+                            setFlashcardIndex(prev => (prev < filtered.length - 1 ? prev + 1 : 0));
+                            setIsFlipped(false);
+                          }}
+                          style={{ minWidth: 160 }}
+                        >
+                          Кийинкиси 👉
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // ── Mode 2: Vocabulary Grid Cards ──
+                return (
+                  <div className="grid-3">
+                    {filtered.map((w, idx) => (
+                      <div key={w.id || idx} className="card slide-up student-word-card" style={{ padding: '20px 22px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                                {w.word}
+                              </h3>
+                              <button
+                                type="button"
+                                className="word-speaker-btn"
+                                onClick={() => speakWord(w.word)}
+                                title="Послушать правильное произношение"
+                              >
+                                🔊
+                              </button>
+                            </div>
+
+                            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--tiffany-dark)', marginBottom: 8 }}>
+                              {w.translation}
+                            </div>
+
+                            {w.example && (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 10 }}>
+                                💬 "{w.example}"
+                              </div>
+                            )}
+
+                            <span className="badge badge-purple" style={{ fontSize: '0.76rem' }}>
+                              📁 {w.category || 'Жалпы / Общий'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
               })()}
             </div>
           )}
@@ -1500,6 +1752,239 @@ export default function Student() {
             font-size: 0.85rem;
             padding: 10px 8px;
           }
+        }
+
+        /* ── Student Dictionary Mode Toggle ── */
+        .dict-mode-toggle {
+          display: inline-flex;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border);
+          border-radius: 100px;
+          padding: 3px;
+          gap: 4px;
+        }
+
+        .dict-mode-btn {
+          border: none;
+          background: transparent;
+          padding: 6px 14px;
+          border-radius: 100px;
+          font-size: 0.84rem;
+          font-weight: 700;
+          color: var(--text-secondary);
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s ease;
+        }
+
+        .dict-mode-btn.active {
+          background: #ffffff;
+          color: var(--tiffany-dark);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ── Student Word Card ── */
+        .student-word-card {
+          border: 1.5px solid var(--border);
+          transition: all 0.25s ease;
+        }
+
+        .student-word-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 24px rgba(10, 186, 181, 0.14);
+          border-color: var(--tiffany);
+        }
+
+        .word-speaker-btn {
+          border: none;
+          background: #f0fdfa;
+          border: 1px solid #ccfbf1;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: all 0.2s ease;
+        }
+
+        .word-speaker-btn:hover {
+          transform: scale(1.15);
+          background: #ccfbf1;
+        }
+
+        /* ── Interactive Flashcard (3D Flip) ── */
+        .flashcard-container {
+          max-width: 580px;
+          margin: 0 auto 32px auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 18px;
+        }
+
+        .flashcard-progress-bar {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+        }
+
+        .flashcard-dots {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .fc-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--border);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .fc-dot.active {
+          background: var(--tiffany);
+          transform: scale(1.4);
+        }
+
+        .fc-dot.done {
+          background: var(--tiffany-dark);
+        }
+
+        .student-flashcard {
+          width: 100%;
+          height: 320px;
+          perspective: 1000px;
+          cursor: pointer;
+          user-select: none;
+        }
+
+        .fc-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          text-align: center;
+          transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-style: preserve-3d;
+        }
+
+        .student-flashcard.flipped .fc-inner {
+          transform: rotateY(180deg);
+        }
+
+        .fc-side {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          border-radius: 24px;
+          padding: 28px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+          border: 2px solid var(--border);
+        }
+
+        .fc-front {
+          background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .fc-back {
+          background: linear-gradient(145deg, #f0fdfa 0%, #e6fffa 100%);
+          transform: rotateY(180deg);
+          border-color: #99f6e4;
+        }
+
+        .fc-category-badge {
+          position: absolute;
+          top: 20px;
+          left: 24px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: var(--tiffany-dark);
+          background: rgba(10, 186, 181, 0.12);
+          padding: 4px 12px;
+          border-radius: 100px;
+        }
+
+        .fc-word-large {
+          font-size: 2.5rem;
+          font-weight: 800;
+          color: var(--text-primary);
+          letter-spacing: -0.5px;
+          margin-bottom: 12px;
+        }
+
+        .fc-translation-large {
+          font-size: 2.2rem;
+          font-weight: 800;
+          color: var(--tiffany-dark);
+          margin-bottom: 6px;
+        }
+
+        .fc-word-sub {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: var(--text-muted);
+          margin-bottom: 12px;
+        }
+
+        .fc-example-box {
+          font-size: 0.95rem;
+          color: #334155;
+          font-style: italic;
+          background: rgba(255, 255, 255, 0.8);
+          padding: 8px 16px;
+          border-radius: 12px;
+          border: 1px solid #ccfbf1;
+          margin-bottom: 12px;
+          max-width: 90%;
+        }
+
+        .fc-speak-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 18px;
+          border-radius: 100px;
+          background: #ffffff;
+          border: 1.5px solid var(--tiffany);
+          color: var(--tiffany-dark);
+          font-weight: 700;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(10, 186, 181, 0.15);
+        }
+
+        .fc-speak-btn:hover {
+          background: var(--tiffany);
+          color: #ffffff;
+          transform: scale(1.05);
+        }
+
+        .fc-hint-text {
+          position: absolute;
+          bottom: 18px;
+          font-size: 0.78rem;
+          color: var(--text-muted);
+        }
+
+        .flashcard-nav-row {
+          display: flex;
+          gap: 16px;
+          justify-content: center;
+          width: 100%;
         }
       `}</style>
     </>

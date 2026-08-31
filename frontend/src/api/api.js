@@ -16,7 +16,8 @@ api.interceptors.request.use((config) => {
     url === '/students/activity' ||
     url === '/students/activity/weekly' ||
     url.startsWith('/students/progress') ||
-    url.startsWith('/games/student')
+    url.startsWith('/games/student') ||
+    url.startsWith('/dictionary/student')
   ) {
     token = localStorage.getItem('student_token');
   } else {
@@ -103,6 +104,18 @@ export const gamesAPI = {
   // Student
   getForStudent: () => api.get('/games/student/list'),
   complete: (id, score) => api.post(`/games/student/complete/${id}`, { score }),
+};
+
+// ─── Dictionary ──────────────────────────────────────────────
+export const dictionaryAPI = {
+  // Teacher
+  getByClass: (classId) => api.get(`/dictionary/${classId}`),
+  create: (classId, data) => api.post(`/dictionary/${classId}`, data),
+  update: (id, data) => api.put(`/dictionary/item/${id}`, data),
+  delete: (id) => api.delete(`/dictionary/item/${id}`),
+  syncFromGames: (classId) => api.post(`/dictionary/${classId}/sync-games`),
+  // Student
+  getForStudent: () => api.get('/dictionary/student/list'),
 };
 
 export default api;

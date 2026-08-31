@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { classesAPI, videosAPI, studentsAPI, gamesAPI } from '../api/api';
+import { classesAPI, videosAPI, studentsAPI, gamesAPI, dictionaryAPI } from '../api/api';
 import VideoCard from '../components/VideoCard';
 import Navbar from '../components/Navbar';
 
@@ -22,8 +22,9 @@ export default function ClassPage() {
   const [videos, setVideos] = useState([]);
   const [students, setStudents] = useState([]);
   const [games, setGames] = useState([]);
+  const [dictionaryWords, setDictionaryWords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('videos'); // 'videos' | 'students' | 'games'
+  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'dictionary' | 'students'
 
   const [showAddVideo, setShowAddVideo] = useState(false);
   const [editVideo, setEditVideo] = useState(null);
@@ -32,6 +33,14 @@ export default function ClassPage() {
   const [showAddGame, setShowAddGame] = useState(false);
   const [editGame, setEditGame] = useState(null);
   const [gameCategoryFilter, setGameCategoryFilter] = useState('all');
+
+  // Dictionary state
+  const [dictSearch, setDictSearch] = useState('');
+  const [dictCategoryFilter, setDictCategoryFilter] = useState('all');
+  const [showAddWord, setShowAddWord] = useState(false);
+  const [editWord, setEditWord] = useState(null);
+  const [wordForm, setWordForm] = useState({ word: '', translation: '', category: 'Жалпы / Общий', example: '' });
+  const [syncingDict, setSyncingDict] = useState(false);
 
   const GAME_CATEGORIES = [
     { type: 'all', label: 'Бардыгы / Все', icon: '✨' },
@@ -65,16 +74,18 @@ export default function ClassPage() {
 
   const loadAll = async (silent = false) => {
     try {
-      const [clsRes, vidRes, stuRes, gamRes] = await Promise.all([
+      const [clsRes, vidRes, stuRes, gamRes, dictRes] = await Promise.all([
         classesAPI.getOne(id),
         videosAPI.getByClass(id),
         studentsAPI.getByClass(id),
         gamesAPI.getByClass(id),
+        dictionaryAPI.getByClass(id).catch(() => ({ data: [] })),
       ]);
       setCls(clsRes.data);
       setVideos(vidRes.data);
       setStudents(stuRes.data);
       setGames(gamRes.data);
+      setDictionaryWords(dictRes.data || []);
     } catch (err) {
       if (err.response?.status === 401) navigate('/admin/login');
       else if (err.response?.status === 404) navigate('/admin/dashboard');
@@ -235,6 +246,80 @@ export default function ClassPage() {
     }
   };
 
+  const speakWord = (text) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const openAddWord = () => {
+    setEditWord(null);
+    setWordForm({ word: '', translation: '', category: 'Жалпы / Общий', example: '' });
+    setError('');
+    setShowAddWord(true);
+  };
+
+  const openEditWord = (w) => {
+    setEditWord(w);
+    setWordForm({
+      word: w.word || '',
+      translation: w.translation || '',
+      category: w.category || 'Жалпы / Общий',
+      example: w.example || ''
+    });
+    setError('');
+    setShowAddWord(true);
+  };
+
+  const handleSaveWord = async (e) => {
+    e.preventDefault();
+    if (!wordForm.word.trim() || !wordForm.translation.trim()) {
+      setError('Заполните слово и перевод');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      if (editWord) {
+        await dictionaryAPI.update(editWord.id, wordForm);
+      } else {
+        await dictionaryAPI.create(id, wordForm);
+      }
+      setShowAddWord(false);
+      loadAll(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Ошибка при сохранении слова');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteWord = async (wordId) => {
+    if (!window.confirm('Точно удалить это слово из словаря?')) return;
+    try {
+      await dictionaryAPI.delete(wordId);
+      loadAll(true);
+    } catch (err) {
+      alert('Ошибка при удалении слова');
+    }
+  };
+
+  const handleSyncDictionaryFromGames = async () => {
+    setSyncingDict(true);
+    try {
+      const res = await dictionaryAPI.syncFromGames(id);
+      loadAll(true);
+      alert(`Успешно синхронизировано! В словаре теперь ${res.data.count} слов.`);
+    } catch (err) {
+      alert('Ошибка при синхронизации слов из игр');
+    } finally {
+      setSyncingDict(false);
+    }
+  };
+
   const copyCode = () => {
     navigator.clipboard.writeText(cls.code);
     setCopied(true);
@@ -291,6 +376,9 @@ export default function ClassPage() {
             </button>
             <button className={`tab ${tab === 'games' ? 'active' : ''}`} onClick={() => setTab('games')}>
               <i className="ph ph-game-controller"></i> Игры <span className="badge badge-purple" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem' }}>{games.length}</span>
+            </button>
+            <button className={`tab ${tab === 'dictionary' ? 'active' : ''}`} onClick={() => setTab('dictionary')}>
+              <i className="ph ph-book-open"></i> Словарь <span className="badge" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem', background: '#ccfbf1', color: '#0f766e', fontWeight: 700 }}>{dictionaryWords.length}</span>
             </button>
             <button className={`tab ${tab === 'students' ? 'active' : ''}`} onClick={() => setTab('students')}>
               <i className="ph ph-users"></i> Ученики <span className="badge badge-green" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem' }}>{students.length}</span>
@@ -466,6 +554,170 @@ export default function ClassPage() {
                         </div>
                       );
                     })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Dictionary Tab */}
+          {tab === 'dictionary' && (
+            <div className="fade-in">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h2>Словарь класса (Сөздүк)</h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: 4 }}>
+                    Всего слов: <strong>{dictionaryWords.length}</strong> • Ученики могут учить новые слова и слушать правильное произношение
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleSyncDictionaryFromGames}
+                    disabled={syncingDict}
+                    title="Автоматически добавить все слова из игр этого класса"
+                  >
+                    <i className="ph ph-arrows-clockwise"></i> {syncingDict ? 'Синхронизация...' : 'Синхронизировать из игр'}
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={openAddWord}>
+                    <i className="ph ph-plus"></i> Добавить слово
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Topic Filters */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 240, position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="🔍 Поиск слова или перевода..."
+                    value={dictSearch}
+                    onChange={(e) => setDictSearch(e.target.value)}
+                  />
+                  {dictSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDictSearch('')}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Category selector */}
+                {(() => {
+                  const uniqueCategories = ['all', ...Array.from(new Set(dictionaryWords.map(w => w.category || 'Жалпы / Общий')))];
+                  return (
+                    <select
+                      className="form-input"
+                      value={dictCategoryFilter}
+                      onChange={(e) => setDictCategoryFilter(e.target.value)}
+                      style={{ width: 'auto', minWidth: 180, fontWeight: 600 }}
+                    >
+                      <option value="all">✨ Все категории ({dictionaryWords.length})</option>
+                      {uniqueCategories.filter(c => c !== 'all').map(cat => {
+                        const count = dictionaryWords.filter(w => (w.category || 'Жалпы / Общий') === cat).length;
+                        return (
+                          <option key={cat} value={cat}>
+                            📁 {cat} ({count})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              {(() => {
+                const q = dictSearch.toLowerCase().trim();
+                const filtered = dictionaryWords.filter(w => {
+                  const matchCat = dictCategoryFilter === 'all' || (w.category || 'Жалпы / Общий') === dictCategoryFilter;
+                  const matchSearch = !q || (w.word || '').toLowerCase().includes(q) || (w.translation || '').toLowerCase().includes(q);
+                  return matchCat && matchSearch;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="empty-state">
+                      <div className="empty-state-icon"><i className="ph ph-book-open"></i></div>
+                      <h3>{dictionaryWords.length === 0 ? 'В словаре пока нет слов' : 'Ничего не найдено'}</h3>
+                      <p>
+                        {dictionaryWords.length === 0
+                          ? 'Добавьте первые слова или синхронизируйте их в 1 клик из интерактивных игр!'
+                          : 'Попробуйте изменить поисковый запрос или категорию'}
+                      </p>
+                      {dictionaryWords.length === 0 && (
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 16 }}>
+                          <button className="btn btn-primary" onClick={handleSyncDictionaryFromGames}>
+                            <i className="ph ph-arrows-clockwise"></i> Загрузить слова из игр
+                          </button>
+                          <button className="btn btn-secondary" onClick={openAddWord}>
+                            <i className="ph ph-plus"></i> Добавить вручную
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid-3">
+                    {filtered.map(w => (
+                      <div key={w.id} className="card slide-up word-card" style={{ padding: '18px 20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                                {w.word}
+                              </h3>
+                              <button
+                                type="button"
+                                className="word-speaker-btn"
+                                onClick={() => speakWord(w.word)}
+                                title="Послушать произношение"
+                              >
+                                🔊
+                              </button>
+                            </div>
+
+                            <div style={{ fontSize: '1.02rem', fontWeight: 600, color: 'var(--tiffany-dark)', marginBottom: 8 }}>
+                              {w.translation}
+                            </div>
+
+                            {w.example && (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 8 }}>
+                                💬 "{w.example}"
+                              </div>
+                            )}
+
+                            <span className="badge badge-purple" style={{ fontSize: '0.75rem' }}>
+                              📁 {w.category || 'Жалпы / Общий'}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              className="btn btn-icon btn-secondary"
+                              title="Редактировать"
+                              onClick={() => openEditWord(w)}
+                            >
+                              <i className="ph ph-pencil-simple"></i>
+                            </button>
+                            <button
+                              className="btn btn-icon"
+                              style={{ color: 'var(--danger)' }}
+                              title="Удалить"
+                              onClick={() => handleDeleteWord(w.id)}
+                            >
+                              <i className="ph ph-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 );
               })()}
@@ -785,6 +1037,88 @@ export default function ClassPage() {
         </div>
       )}
 
+      {/* Add/Edit Dictionary Word Modal */}
+      {showAddWord && (
+        <div className="modal-overlay" onClick={() => setShowAddWord(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {editWord ? <><i className="ph ph-pencil-simple"></i> Редактировать слово</> : <><i className="ph ph-book-open"></i> Добавить слово в словарь</>}
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddWord(false)}><i className="ph ph-x"></i></button>
+            </div>
+            <form onSubmit={handleSaveWord} className="modal-form">
+              <div className="form-group">
+                <label className="form-label">Английское слово (English) *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    className="form-input"
+                    placeholder="Например: Apple"
+                    value={wordForm.word}
+                    onChange={(e) => setWordForm({ ...wordForm, word: e.target.value })}
+                    required
+                    autoFocus
+                    style={{ flex: 1 }}
+                  />
+                  {wordForm.word && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => speakWord(wordForm.word)}
+                      title="Проверить звучание"
+                    >
+                      🔊
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Перевод (Кыргызча / Русский) *</label>
+                <input
+                  className="form-input"
+                  placeholder="Например: Алма / Яблоко"
+                  value={wordForm.translation}
+                  onChange={(e) => setWordForm({ ...wordForm, translation: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Категория / Тема</label>
+                <input
+                  className="form-input"
+                  placeholder="Например: Тамак-аш / Food, Үй-бүлө / Family"
+                  value={wordForm.category}
+                  onChange={(e) => setWordForm({ ...wordForm, category: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Пример предложения (необязательно)</label>
+                <input
+                  className="form-input"
+                  placeholder="Например: I like to eat a fresh red apple."
+                  value={wordForm.example}
+                  onChange={(e) => setWordForm({ ...wordForm, example: e.target.value })}
+                />
+              </div>
+
+              {error && <div className="alert alert-error">{error}</div>}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <button type="button" className="btn btn-secondary btn-full" onClick={() => setShowAddWord(false)}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
+                  {saving ? 'Сохранение...' : editWord ? 'Сохранить изменения' : 'Добавить слово'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .breadcrumb { display: flex; gap: 8px; align-items: center; margin-bottom: 24px; font-size: 0.9rem; }
         .breadcrumb-link { color: var(--accent); }
@@ -831,6 +1165,38 @@ export default function ClassPage() {
         .student-name { font-weight: 600; font-size: 0.95rem; }
         .student-date { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
         .student-num { margin-left: auto; color: var(--text-muted); font-size: 0.85rem; }
+
+        /* ── Word Cards & Speaker Button ── */
+        .word-card {
+          border: 1.5px solid var(--border);
+          transition: all 0.2s ease;
+        }
+
+        .word-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(10, 186, 181, 0.12);
+          border-color: var(--tiffany);
+        }
+
+        .word-speaker-btn {
+          border: none;
+          background: #f0fdfa;
+          border: 1px solid #ccfbf1;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 0.95rem;
+          transition: all 0.2s ease;
+        }
+
+        .word-speaker-btn:hover {
+          transform: scale(1.15);
+          background: #ccfbf1;
+        }
 
         /* ── Game Category Filter Bar ── */
         .game-category-filter-bar {
