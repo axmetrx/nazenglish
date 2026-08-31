@@ -107,14 +107,20 @@ router.post('/login', async (req, res) => {
   }
 });
 
-const studentAuth = (req, res, next) => {
+const studentAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer '))
     return res.status(401).json({ message: 'Нет токена' });
 
   const token = authHeader.split(' ')[1];
   try {
-    req.student = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // Проверяем что ученик ещё существует в базе (не удалён админом)
+    const student = await studentStore.findById(decoded.studentId);
+    if (!student) {
+      return res.status(401).json({ message: 'Аккаунт удалён' });
+    }
+    req.student = decoded;
     next();
   } catch {
     return res.status(401).json({ message: 'Токен недействителен' });
