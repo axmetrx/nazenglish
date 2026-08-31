@@ -42,6 +42,29 @@ router.delete('/item/:id', teacherAuth, async (req, res) => {
   }
 });
 
+// PUT /api/games/item/:id - update game
+router.put('/item/:id', teacherAuth, async (req, res) => {
+  try {
+    const gameRes = await db.query('SELECT class_id FROM games WHERE id = $1', [req.params.id]);
+    if (!gameRes.rows[0]) return res.status(404).json({ message: 'Игра не найдена' });
+
+    const cls = await classStore.findById(gameRes.rows[0].class_id);
+    if (!cls || cls.teacherId !== req.teacher.id) return res.status(403).json({ message: 'Нет доступа' });
+
+    const { title, type, data } = req.body;
+    if (!title || !type || !data) return res.status(400).json({ message: 'Неверные данные' });
+
+    const result = await db.query(
+      'UPDATE games SET title = $1, type = $2, data = $3 WHERE id = $4 RETURNING *',
+      [title.trim(), type, data, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('❌ Update game error:', err.message);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // ================= STUDENT ROUTES =================
 
 // GET /api/games/student/list - get games for the student's class

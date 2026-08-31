@@ -98,6 +98,7 @@ export const gamesAPI = {
   // Teacher
   getByClass: (classId) => api.get(`/games/${classId}`),
   create: (classId, data) => api.post(`/games/${classId}`, data),
+  update: (id, data) => api.put(`/games/item/${id}`, data),
   delete: (id) => api.delete(`/games/item/${id}`),
   // Student
   getForStudent: () => api.get('/games/student/list'),

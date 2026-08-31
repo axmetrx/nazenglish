@@ -30,6 +30,7 @@ export default function ClassPage() {
   const [videoForm, setVideoForm] = useState({ title: '', description: '', url: '' });
   
   const [showAddGame, setShowAddGame] = useState(false);
+  const [editGame, setEditGame] = useState(null);
   const [gameForm, setGameForm] = useState({
     title: '',
     gameType: 'match_pairs',
@@ -83,6 +84,32 @@ export default function ClassPage() {
     setVideoForm({ title: video.title, description: video.description, url: video.url });
     setError('');
     setShowAddVideo(true);
+  };
+
+  const openAddGame = () => {
+    setEditGame(null);
+    setGameForm({
+      title: '',
+      gameType: 'match_pairs',
+      pairs: [{ word: '', translation: '' }],
+      words: [''],
+      questions: [{ question: '', options: ['', '', '', ''], answer: 0 }],
+    });
+    setError('');
+    setShowAddGame(true);
+  };
+
+  const openEditGame = (game) => {
+    setEditGame(game);
+    setGameForm({
+      title: game.title || '',
+      gameType: game.type || 'match_pairs',
+      pairs: game.data?.pairs?.length ? game.data.pairs : [{ word: '', translation: '' }],
+      words: game.data?.words?.length ? game.data.words : [''],
+      questions: game.data?.questions?.length ? game.data.questions : [{ question: '', options: ['', '', '', ''], answer: 0 }],
+    });
+    setError('');
+    setShowAddGame(true);
   };
 
   const handleSaveVideo = async (e) => {
@@ -164,7 +191,12 @@ export default function ClassPage() {
         }
         data = { questions: qs };
       }
-      await gamesAPI.create(id, { title: gameForm.title.trim(), type, data });
+
+      if (editGame) {
+        await gamesAPI.update(editGame.id, { title: gameForm.title.trim(), type, data });
+      } else {
+        await gamesAPI.create(id, { title: gameForm.title.trim(), type, data });
+      }
       setShowAddGame(false);
       loadAll(true);
     } catch (err) {
@@ -284,13 +316,9 @@ export default function ClassPage() {
           {/* Games Tab */}
           {tab === 'games' && (
             <div className="fade-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                 <h2>Интерактивные игры</h2>
-                <button className="btn btn-primary" onClick={() => {
-                  setGameForm({ title: '', gameType: 'match_pairs', pairs: [{ word: '', translation: '' }], words: [''], questions: [{ question: '', options: ['', '', '', ''], answer: 0 }] });
-                  setError('');
-                  setShowAddGame(true);
-                }}>
+                <button className="btn btn-primary" onClick={openAddGame}>
                   <i className="ph ph-plus"></i> Создать игру
                 </button>
               </div>
@@ -299,6 +327,9 @@ export default function ClassPage() {
                   <div className="empty-state-icon"><i className="ph ph-game-controller"></i></div>
                   <h3>Нет игр</h3>
                   <p>Создайте игру, чтобы ученики могли зарабатывать баллы!</p>
+                  <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={openAddGame}>
+                    <i className="ph ph-plus"></i> Создать первую игру
+                  </button>
                 </div>
               ) : (
                 <div className="grid-3">
@@ -312,16 +343,30 @@ export default function ClassPage() {
                     const info = typeLabels[game.type] || { label: '🎮 Игра', xp: '?', info: '' };
                     return (
                       <div key={game.id} className="card slide-up" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                           <div>
                             <div className="badge badge-purple" style={{ marginBottom: 6 }}>{info.label}</div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--tiffany)', fontWeight: 600, marginBottom: 8 }}>+{info.xp} за прохождение</div>
                             <h3 style={{ fontSize: '1.1rem', marginBottom: 6 }}>{game.title}</h3>
                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{info.info}</p>
                           </div>
-                          <button className="btn btn-icon" style={{ color: 'var(--danger)' }} onClick={() => handleDeleteGame(game.id)}>
-                            <i className="ph ph-trash"></i>
-                          </button>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              className="btn btn-icon btn-secondary"
+                              title="Редактировать игру"
+                              onClick={() => openEditGame(game)}
+                            >
+                              <i className="ph ph-pencil-simple"></i>
+                            </button>
+                            <button
+                              className="btn btn-icon"
+                              style={{ color: 'var(--danger)' }}
+                              title="Удалить игру"
+                              onClick={() => handleDeleteGame(game.id)}
+                            >
+                              <i className="ph ph-trash"></i>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -461,7 +506,9 @@ export default function ClassPage() {
         <div className="modal-overlay" onClick={() => setShowAddGame(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620, maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="modal-header">
-              <h3 className="modal-title"><i className="ph ph-game-controller"></i> Создать игру</h3>
+              <h3 className="modal-title">
+                <i className="ph ph-game-controller"></i> {editGame ? 'Редактировать игру' : 'Создать игру'}
+              </h3>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowAddGame(false)}><i className="ph ph-x"></i></button>
             </div>
             <form onSubmit={handleSaveGame}>
@@ -601,7 +648,7 @@ export default function ClassPage() {
               <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                 <button type="button" className="btn btn-secondary btn-full" onClick={() => setShowAddGame(false)}>Отмена</button>
                 <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
-                  {saving ? 'Сохранение...' : <><i className="ph ph-game-controller"></i> Создать игру</>}
+                  {saving ? 'Сохранение...' : editGame ? <><i className="ph ph-floppy-disk"></i> Сохранить изменения</> : <><i className="ph ph-game-controller"></i> Создать игру</>}
                 </button>
               </div>
             </form>
