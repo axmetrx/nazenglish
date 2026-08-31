@@ -103,7 +103,6 @@ function VideoPlayerFrame({ url, title }) {
           allowFullScreen={true}
           webkitallowfullscreen="true"
           mozallowfullscreen="true"
-          referrerPolicy="no-referrer"
           loading="eager"
           className="video-player-frame"
           onError={() => setIframeError(true)}
@@ -143,6 +142,19 @@ function VideoPlayerFrame({ url, title }) {
           <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
           <span>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
         </button>
+
+        {driveFileId && (
+          <a
+            href={`https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`}
+            target="_blank"
+            rel="noreferrer"
+            className="vdf-btn vdf-drive-btn"
+            title="Эгер видео ачылбаса, түздөн-түз көрүү"
+          >
+            <i className="ph-bold ph-arrow-square-out"></i>
+            <span>Түздөн-түз көрүү ↗</span>
+          </a>
+        )}
       </div>
     </div>
   );
