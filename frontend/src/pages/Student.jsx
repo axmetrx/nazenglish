@@ -98,6 +98,7 @@ function VideoPlayerFrame({ url, title }) {
       {streamUrl && !useIframeFallback ? (
         <video
           ref={videoRef}
+          key={streamUrl}
           src={streamUrl}
           controls
           playsInline
@@ -105,10 +106,6 @@ function VideoPlayerFrame({ url, title }) {
           preload="metadata"
           className="video-player-frame"
           style={{ width: '100%', aspectRatio: '16/9', background: '#000', display: 'block' }}
-          onError={() => {
-            console.warn('Native video error, switching to iframe player fallback');
-            setUseIframeFallback(true);
-          }}
         />
       ) : youtubeEmbedUrl ? (
         /* 2. YouTube / Vimeo Player */

@@ -68,6 +68,13 @@ router.delete('/item/:id', auth, async (req, res) => {
     if (cls.teacherId !== req.teacher.id)
       return res.status(403).json({ message: 'Нет доступа' });
 
+    await videoStore.delete(req.params.id);
+    res.json({ message: 'Видео удалено' });
+  } catch (err) {
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
 // GET /api/videos/stream/:fileId — прямой стриминг видео с Google Диска в нативный HTML5 <video> плеер
 router.get('/stream/:fileId', (req, res) => {
   const fileId = req.params.fileId;
@@ -76,25 +83,43 @@ router.get('/stream/:fileId', (req, res) => {
   }
 
   const https = require('https');
-  const googleUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
-  const headers = {};
-  if (req.headers.range) {
-    headers['Range'] = req.headers.range;
-  }
+  const initialUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
 
-  const clientReq = https.get(googleUrl, { headers }, (gRes) => {
-    if (gRes.statusCode === 301 || gRes.statusCode === 302 || gRes.statusCode === 303 || gRes.statusCode === 307) {
-      const redirectUrl = gRes.headers.location;
-      if (redirectUrl) {
-        return https.get(redirectUrl, { headers }, (rRes) => {
-          pipeVideo(rRes, res);
+  const clientReq = https.get(initialUrl, (gRes1) => {
+    const cookies = gRes1.headers['set-cookie'] || [];
+    const cookieHeader = cookies.map(c => c.split(';')[0]).join('; ');
+    const redirectLoc = gRes1.headers.location;
+
+    let targetUrl;
+    if (redirectLoc) {
+      targetUrl = redirectLoc.includes('confirm=') ? redirectLoc : `${redirectLoc}&confirm=t`;
+    } else {
+      targetUrl = `https://drive.usercontent.google.com/download?id=${fileId}&export=download&confirm=t`;
+    }
+
+    const headers2 = {};
+    if (cookieHeader) headers2['Cookie'] = cookieHeader;
+    if (req.headers.range) headers2['Range'] = req.headers.range;
+
+    const streamReq = https.get(targetUrl, { headers: headers2 }, (gRes2) => {
+      if ((gRes2.statusCode === 301 || gRes2.statusCode === 302 || gRes2.statusCode === 303 || gRes2.statusCode === 307) && gRes2.headers.location) {
+        return https.get(gRes2.headers.location, { headers: headers2 }, (gRes3) => {
+          pipeVideo(gRes3, res);
         }).on('error', (err) => {
           if (!res.headersSent) res.status(500).send(err.message);
         });
       }
-    }
 
-    pipeVideo(gRes, res);
+      pipeVideo(gRes2, res);
+    });
+
+    streamReq.on('error', (err) => {
+      if (!res.headersSent) res.status(500).send(err.message);
+    });
+
+    req.on('close', () => {
+      streamReq.destroy();
+    });
   });
 
   clientReq.on('error', (err) => {
@@ -111,6 +136,7 @@ function pipeVideo(gRes, res) {
   const headers = {
     'Content-Type': 'video/mp4',
     'Accept-Ranges': 'bytes',
+    'Access-Control-Allow-Origin': '*',
     'Cache-Control': 'public, max-age=86400',
   };
 
