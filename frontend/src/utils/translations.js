@@ -95,6 +95,14 @@ export const translations = {
     videoUrl: "Ссылка на видео",
     enterTeacherCode: "Введите секретный код учителя",
     teacherCodePlaceholder: "Код учителя",
+    lessonLocked: "Урок заблокирован 🔒",
+    lessonLockedDesc: "Чтобы открыть этот урок, сначала завершите предыдущие уроки!",
+    completeLesson: "Завершить урок ✅ (+10 XP)",
+    lessonCompleted: "Урок завершён! 🎉",
+    nextLessonUnlocked: "Следующий урок открыт! 🔓",
+    lockedNotice: "Сначала завершите предыдущий урок",
+    completed: "Пройден",
+    locked: "Заблокирован",
   },
   kg: {
     brand: "Nazenglish",
@@ -192,6 +200,14 @@ export const translations = {
     videoUrl: "Видеонун шилтемеси",
     enterTeacherCode: "Мугалимдин жашыруун кодун киргизиңиз",
     teacherCodePlaceholder: "Мугалимдин коду",
+    lessonLocked: "Сабак кулпуланган 🔒",
+    lessonLockedDesc: "Бул сабакты ачуу үчүн алгач мурунку сабактарды көрүп бүтүрүңүз!",
+    completeLesson: "Сабакты аяктоо ✅ (+10 XP)",
+    lessonCompleted: "Сабак аякталды! 🎉",
+    nextLessonUnlocked: "Кийинки сабак ачылды! 🔓",
+    lockedNotice: "Алгач мурунку сабакты аяктаңыз",
+    completed: "Аякталды",
+    locked: "Жабык",
   }
 };
 

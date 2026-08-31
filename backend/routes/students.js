@@ -52,14 +52,25 @@ const studentAuth = (req, res, next) => {
   }
 };
 
-// GET /api/students/class — получить видеоуроки своего класса (по токену)
+// GET /api/students/class — получить видеоуроки своего класса (по токену) + статус просмотра
 router.get('/class', studentAuth, async (req, res) => {
   try {
     const cls = await classStore.findById(req.student.classId);
     if (!cls) return res.status(404).json({ message: 'Класс не найден' });
 
     const videos = await videoStore.findByClass(cls.id);
-    res.json({ class: { id: cls.id, name: cls.name, description: cls.description }, videos });
+    const db = require('../db');
+    const progressRes = await db.query(
+      'SELECT video_id FROM student_video_progress WHERE student_id = $1',
+      [req.student.studentId]
+    ).catch(() => ({ rows: [] }));
+    const watchedVideoIds = progressRes.rows.map(r => r.video_id);
+
+    res.json({
+      class: { id: cls.id, name: cls.name, description: cls.description },
+      videos,
+      watchedVideoIds
+    });
   } catch (err) {
     res.status(500).json({ message: 'Ошибка сервера' });
   }

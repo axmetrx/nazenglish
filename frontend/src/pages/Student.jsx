@@ -52,6 +52,8 @@ function VideoPlayerFrame({ url, title }) {
 }
 
 export default function Student() {
+  const [completedVideoIds, setCompletedVideoIds] = useState(new Set());
+  const [lockToast, setLockToast] = useState('');
   const [classData, setClassData] = useState(null);
   const [videos, setVideos] = useState([]);
   const [games, setGames] = useState([]);
@@ -107,6 +109,9 @@ export default function Student() {
       ]);
       setClassData(classRes.data.class);
       setVideos(classRes.data.videos);
+      if (classRes.data.watchedVideoIds) {
+        setCompletedVideoIds(new Set(classRes.data.watchedVideoIds));
+      }
       setGames(gamesRes.data);
       setLeaderboard(leadRes.data);
       setWeeklyActivity(actRes.data);
@@ -120,6 +125,56 @@ export default function Student() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Check if lesson at index is unlocked
+  // Rule: Lesson 0 is always unlocked. Lesson N is unlocked only if all previous lessons (0..N-1) are completed!
+  const isLessonUnlocked = (index) => {
+    if (index === 0) return true;
+    for (let k = 0; k < index; k++) {
+      const prevVideo = videos[k];
+      if (prevVideo && !completedVideoIds.has(prevVideo.id)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSelectLesson = (index) => {
+    if (!isLessonUnlocked(index)) {
+      setLockToast(`${index + 1}-${t('lesson')} ${t('locked')}. ${t('lessonLockedDesc')}`);
+      setTimeout(() => setLockToast(''), 4000);
+      return;
+    }
+    setCurrentLessonIndex(index);
+    setLockToast('');
+  };
+
+  const handleCompleteLesson = async (video) => {
+    if (!video) return;
+    setCompletedVideoIds(prev => {
+      const next = new Set(prev);
+      next.add(video.id);
+      return next;
+    });
+    try {
+      await studentsAPI.markVideoWatched(video.id);
+      const leadRes = await studentsAPI.getLeaderboard().catch(() => null);
+      if (leadRes) setLeaderboard(leadRes.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleNextLesson = async () => {
+    const currentVideo = videos[currentLessonIndex];
+    if (currentVideo) {
+      await handleCompleteLesson(currentVideo);
+    }
+    const nextIdx = currentLessonIndex + 1;
+    if (nextIdx < videos.length) {
+      setCurrentLessonIndex(nextIdx);
     }
   };
 
@@ -245,6 +300,13 @@ export default function Student() {
             </button>
           </div>
 
+          {/* Toast Notice for Locked Lesson */}
+          {lockToast && (
+            <div className="seq-lock-toast fade-in">
+              <i className="ph-fill ph-lock-key"></i> {lockToast}
+            </div>
+          )}
+
           {/* Videos Tab: One by One Sequential Lesson Player */}
           {tab === 'videos' && (
             <div className="fade-in">
@@ -272,88 +334,141 @@ export default function Student() {
                 <div className="seq-player-container">
                   {/* Lesson Pills Switcher */}
                   <div className="seq-pills-bar">
-                    {videos.map((v, i) => (
-                      <button
-                        key={v.id || i}
-                        className={`seq-pill-btn ${i === currentLessonIndex ? 'active' : ''}`}
-                        onClick={() => {
-                          setCurrentLessonIndex(i);
-                          studentsAPI.markVideoWatched(v.id).catch(() => {});
-                        }}
-                      >
-                        <i className={`ph ${i === currentLessonIndex ? 'ph-play-circle' : 'ph-video'}`}></i>
-                        <span>{i + 1}-{t('lesson')}</span>
-                      </button>
-                    ))}
+                    {videos.map((v, i) => {
+                      const unlocked = isLessonUnlocked(i);
+                      const completed = completedVideoIds.has(v.id);
+                      const active = i === currentLessonIndex;
+                      return (
+                        <button
+                          key={v.id || i}
+                          className={`seq-pill-btn ${active ? 'active' : ''} ${!unlocked ? 'locked' : ''} ${completed ? 'completed' : ''}`}
+                          onClick={() => handleSelectLesson(i)}
+                          title={!unlocked ? t('lessonLocked') : completed ? t('completed') : ''}
+                        >
+                          {!unlocked ? (
+                            <i className="ph-bold ph-lock-key" style={{ color: '#d97706' }}></i>
+                          ) : completed ? (
+                            <i className="ph-fill ph-check-circle" style={{ color: '#059669' }}></i>
+                          ) : (
+                            <i className={`ph ${active ? 'ph-play-circle' : 'ph-video'}`}></i>
+                          )}
+                          <span>{i + 1}-{t('lesson')}</span>
+                          {!unlocked && <span className="seq-lock-badge">🔒</span>}
+                          {completed && <span className="seq-check-badge">✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Main Active Lesson Player Card */}
                   {videos[currentLessonIndex] && (
-                    <div className="seq-active-card">
-                      <div className="seq-video-frame">
-                        <VideoPlayerFrame
-                          url={videos[currentLessonIndex].url}
-                          title={videos[currentLessonIndex].title}
-                        />
+                    !isLessonUnlocked(currentLessonIndex) ? (
+                      /* Locked Screen */
+                      <div className="seq-active-card seq-locked-card">
+                        <div className="seq-locked-screen">
+                          <div className="seq-lock-icon">🔒</div>
+                          <h3 className="seq-locked-title">{t('lessonLocked')}</h3>
+                          <p className="seq-locked-desc">
+                            {currentLessonIndex + 1}-{t('lesson')} {t('lessonLockedDesc')}
+                          </p>
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => {
+                              let lastUnlocked = 0;
+                              for (let k = 0; k < videos.length; k++) {
+                                if (isLessonUnlocked(k)) lastUnlocked = k;
+                                else break;
+                              }
+                              setCurrentLessonIndex(lastUnlocked);
+                            }}
+                            style={{ minWidth: 200 }}
+                          >
+                            👈 {t('open')} {currentLessonIndex}-{t('lesson')}
+                          </button>
+                        </div>
                       </div>
-
-                      <div className="seq-card-body">
-                        <div className="seq-meta-row">
-                          <div className="badge badge-green" style={{ fontSize: '0.85rem' }}>
-                            <i className="ph ph-check-circle"></i> {t('lesson')} {currentLessonIndex + 1}
-                          </div>
-                          <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            {currentLessonIndex + 1} {t('ofTotal')} {videos.length}
-                          </span>
+                    ) : (
+                      /* Unlocked Video Card */
+                      <div className="seq-active-card">
+                        <div className="seq-video-frame">
+                          <VideoPlayerFrame
+                            url={videos[currentLessonIndex].url}
+                            title={videos[currentLessonIndex].title}
+                          />
                         </div>
 
-                        <h3 className="seq-title">
-                          {videos[currentLessonIndex].title}
-                        </h3>
+                        <div className="seq-card-body">
+                          <div className="seq-meta-row">
+                            <div className="badge badge-green" style={{ fontSize: '0.85rem' }}>
+                              <i className="ph ph-check-circle"></i> {t('lesson')} {currentLessonIndex + 1}
+                            </div>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              {completedVideoIds.has(videos[currentLessonIndex].id) ? (
+                                <span className="badge badge-purple" style={{ fontSize: '0.85rem', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
+                                  <i className="ph-fill ph-check-circle"></i> {t('completed')} (+10 XP)
+                                </span>
+                              ) : (
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleCompleteLesson(videos[currentLessonIndex])}
+                                  style={{ borderColor: 'var(--tiffany)', color: 'var(--tiffany-dark)', fontWeight: 700, background: 'var(--tiffany-xlight)' }}
+                                >
+                                  ✅ {t('completeLesson')}
+                                </button>
+                              )}
 
-                        {videos[currentLessonIndex].description && (
-                          <p className="seq-description">
-                            {videos[currentLessonIndex].description}
-                          </p>
-                        )}
+                              <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                {currentLessonIndex + 1} {t('ofTotal')} {videos.length}
+                              </span>
+                            </div>
+                          </div>
 
-                        {/* Navigation Buttons: Previous / Next */}
-                        <div className="seq-nav-actions">
-                          <button
-                            className="btn btn-secondary"
-                            disabled={currentLessonIndex === 0}
-                            onClick={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
-                            style={{ minWidth: 160 }}
-                          >
-                            <i className="ph ph-arrow-left"></i> {t('prevLesson')}
-                          </button>
+                          <h3 className="seq-title">
+                            {videos[currentLessonIndex].title}
+                          </h3>
 
-                          {currentLessonIndex < videos.length - 1 ? (
+                          {videos[currentLessonIndex].description && (
+                            <p className="seq-description">
+                              {videos[currentLessonIndex].description}
+                            </p>
+                          )}
+
+                          {/* Navigation Buttons: Previous / Next */}
+                          <div className="seq-nav-actions">
                             <button
-                              className="btn btn-primary"
-                              onClick={() => {
-                                const nextIdx = currentLessonIndex + 1;
-                                setCurrentLessonIndex(nextIdx);
-                                if (videos[nextIdx]) {
-                                  studentsAPI.markVideoWatched(videos[nextIdx].id).catch(() => {});
-                                }
-                              }}
+                              className="btn btn-secondary"
+                              disabled={currentLessonIndex === 0}
+                              onClick={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
                               style={{ minWidth: 160 }}
                             >
-                              {t('nextLesson')} <i className="ph ph-arrow-right"></i>
+                              <i className="ph ph-arrow-left"></i> {t('prevLesson')}
                             </button>
-                          ) : (
-                            <button
-                              className="btn btn-primary"
-                              style={{ minWidth: 160, background: 'linear-gradient(135deg, #059669, #047857)' }}
-                              onClick={() => setTab('games')}
-                            >
-                              {t('goToGames')} <i className="ph ph-game-controller"></i>
-                            </button>
-                          )}
+
+                            {currentLessonIndex < videos.length - 1 ? (
+                              <button
+                                className="btn btn-primary"
+                                onClick={handleNextLesson}
+                                style={{ minWidth: 160 }}
+                              >
+                                {t('nextLesson')} <i className="ph ph-arrow-right"></i>
+                              </button>
+                            ) : (
+                              <button
+                                className="btn btn-primary"
+                                style={{ minWidth: 160, background: 'linear-gradient(135deg, #059669, #047857)' }}
+                                onClick={() => {
+                                  handleCompleteLesson(videos[currentLessonIndex]);
+                                  setTab('games');
+                                }}
+                              >
+                                {t('goToGames')} <i className="ph ph-game-controller"></i>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )
                   )}
                 </div>
               )}
@@ -904,11 +1019,96 @@ export default function Student() {
           background: var(--tiffany-xlight);
         }
 
-        .seq-pill-btn.active {
+        .seq-pill-btn.locked {
+          opacity: 0.72;
+          background: #f8fafc;
+          border-color: #cbd5e1;
+          color: #64748b;
+          cursor: pointer;
+        }
+
+        .seq-pill-btn.locked:hover {
+          border-color: #f59e0b;
+          background: #fef3c7;
+        }
+
+        .seq-pill-btn.completed {
+          border-color: #a7f3d0;
+          background: #f0fdf4;
+        }
+
+        .seq-pill-btn.completed.active {
           background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
           color: #fff;
           border-color: transparent;
-          box-shadow: 0 4px 14px rgba(10, 186, 181, 0.35);
+        }
+
+        .seq-lock-badge {
+          font-size: 0.75rem;
+          margin-left: 2px;
+        }
+
+        .seq-check-badge {
+          font-size: 0.8rem;
+          font-weight: 800;
+          color: #059669;
+          margin-left: 2px;
+        }
+
+        .seq-pill-btn.active .seq-check-badge {
+          color: #fff;
+        }
+
+        .seq-lock-toast {
+          position: sticky;
+          top: 70px;
+          z-index: 99;
+          background: linear-gradient(135deg, #d97706, #b45309);
+          color: #fff;
+          font-weight: 700;
+          font-size: 0.95rem;
+          padding: 12px 20px;
+          border-radius: 14px;
+          box-shadow: 0 8px 24px rgba(217, 119, 6, 0.35);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 16px;
+        }
+
+        /* ── Locked Screen ── */
+        .seq-locked-card {
+          background: #ffffff;
+          padding: 60px 24px;
+          text-align: center;
+        }
+
+        .seq-locked-screen {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          max-width: 440px;
+          margin: 0 auto;
+        }
+
+        .seq-lock-icon {
+          font-size: 4rem;
+          animation: pulse 2s infinite;
+        }
+
+        .seq-locked-title {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .seq-locked-desc {
+          font-size: 1rem;
+          color: var(--text-secondary);
+          line-height: 1.6;
+          margin: 0;
         }
 
         .seq-active-card {
