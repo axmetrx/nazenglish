@@ -143,18 +143,6 @@ function VideoPlayerFrame({ url, title }) {
           <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
           <span>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
         </button>
-
-        {driveFileId && (
-          <a
-            href={directUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="vdf-btn vdf-drive-btn"
-          >
-            <i className="ph-bold ph-arrow-square-out"></i>
-            <span>Google Дискте ачуу</span>
-          </a>
-        )}
       </div>
     </div>
   );
