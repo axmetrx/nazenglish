@@ -12,7 +12,7 @@ import { t } from '../utils/translations';
 
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
-  const [iframeError, setIframeError] = React.useState(false);
+  const [iframeError, setIframeError] = useState(false);
 
   let embedUrl = null;
   let directUrl = url;
