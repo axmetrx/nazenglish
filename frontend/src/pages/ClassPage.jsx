@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { classesAPI, videosAPI, studentsAPI, gamesAPI, dictionaryAPI } from '../api/api';
+import { classesAPI, videosAPI, studentsAPI, gamesAPI, dictionaryAPI, homeworksAPI } from '../api/api';
 import VideoCard from '../components/VideoCard';
 import Navbar from '../components/Navbar';
 
@@ -23,8 +23,9 @@ export default function ClassPage() {
   const [students, setStudents] = useState([]);
   const [games, setGames] = useState([]);
   const [dictionaryWords, setDictionaryWords] = useState([]);
+  const [homeworks, setHomeworks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'dictionary' | 'students'
+  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'dictionary' | 'homework' | 'students'
 
   const [showAddVideo, setShowAddVideo] = useState(false);
   const [editVideo, setEditVideo] = useState(null);
@@ -41,6 +42,22 @@ export default function ClassPage() {
   const [editWord, setEditWord] = useState(null);
   const [wordForm, setWordForm] = useState({ word: '', translation: '', category: 'Жалпы / Общий', example: '' });
   const [syncingDict, setSyncingDict] = useState(false);
+
+  // Homework state
+  const [showAddHomework, setShowAddHomework] = useState(false);
+  const [editHomework, setEditHomework] = useState(null);
+  const [homeworkForm, setHomeworkForm] = useState({
+    title: '',
+    description: '',
+    video_id: '',
+    deadline: '',
+    max_points: 30
+  });
+  const [activeSubmissionsHw, setActiveSubmissionsHw] = useState(null);
+  const [submissionsData, setSubmissionsData] = useState({ homework: null, submissions: [] });
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [submissionFilter, setSubmissionFilter] = useState('all'); // 'all' | 'pending' | 'reviewed'
+  const [reviewModal, setReviewModal] = useState(null);
 
   const GAME_CATEGORIES = [
     { type: 'all', label: 'Бардыгы / Все', icon: '✨' },
@@ -74,18 +91,20 @@ export default function ClassPage() {
 
   const loadAll = async (silent = false) => {
     try {
-      const [clsRes, vidRes, stuRes, gamRes, dictRes] = await Promise.all([
+      const [clsRes, vidRes, stuRes, gamRes, dictRes, hwRes] = await Promise.all([
         classesAPI.getOne(id),
         videosAPI.getByClass(id),
         studentsAPI.getByClass(id),
         gamesAPI.getByClass(id),
         dictionaryAPI.getByClass(id).catch(() => ({ data: [] })),
+        homeworksAPI.getByClass(id).catch(() => ({ data: [] })),
       ]);
       setCls(clsRes.data);
       setVideos(vidRes.data);
       setStudents(stuRes.data);
       setGames(gamRes.data);
       setDictionaryWords(dictRes.data || []);
+      setHomeworks(hwRes.data || []);
     } catch (err) {
       if (err.response?.status === 401) navigate('/admin/login');
       else if (err.response?.status === 404) navigate('/admin/dashboard');
@@ -320,6 +339,107 @@ export default function ClassPage() {
     }
   };
 
+  // Homework Handlers
+  const openAddHomework = () => {
+    setEditHomework(null);
+    setHomeworkForm({ title: '', description: '', video_id: '', deadline: '', max_points: 30 });
+    setError('');
+    setShowAddHomework(true);
+  };
+
+  const openEditHomework = (hw) => {
+    setEditHomework(hw);
+    setHomeworkForm({
+      title: hw.title || '',
+      description: hw.description || '',
+      video_id: hw.video_id || '',
+      deadline: hw.deadline ? hw.deadline.slice(0, 10) : '',
+      max_points: hw.max_points || 30
+    });
+    setError('');
+    setShowAddHomework(true);
+  };
+
+  const handleSaveHomework = async (e) => {
+    e.preventDefault();
+    if (!homeworkForm.title.trim() || !homeworkForm.description.trim()) {
+      setError('Заполните название и описание задания');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      if (editHomework) {
+        await homeworksAPI.update(editHomework.id, homeworkForm);
+      } else {
+        await homeworksAPI.create(id, homeworkForm);
+      }
+      setShowAddHomework(false);
+      loadAll(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Ошибка сохранения домашнего задания');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteHomework = async (hwId) => {
+    if (!window.confirm('Точно удалить это задание? Все ответы учеников также будут удалены.')) return;
+    try {
+      await homeworksAPI.delete(hwId);
+      loadAll(true);
+    } catch (err) {
+      alert('Ошибка при удалении задания');
+    }
+  };
+
+  const openSubmissions = async (hw) => {
+    setActiveSubmissionsHw(hw);
+    setSubmissionFilter('all');
+    setLoadingSubmissions(true);
+    try {
+      const res = await homeworksAPI.getSubmissions(hw.id);
+      setSubmissionsData(res.data);
+    } catch (err) {
+      alert('Ошибка загрузки ответов учеников');
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  const openReviewModal = (sub) => {
+    setReviewModal({
+      submission: sub,
+      status: 'reviewed',
+      grade: sub.grade || 5,
+      points_awarded: sub.points_awarded !== null && sub.points_awarded !== undefined ? sub.points_awarded : (activeSubmissionsHw?.max_points || 30),
+      teacher_comment: sub.teacher_comment || 'Азаматсың! Молодец!'
+    });
+  };
+
+  const handleSaveReview = async (e) => {
+    e.preventDefault();
+    if (!reviewModal) return;
+    setSaving(true);
+    try {
+      await homeworksAPI.reviewSubmission(reviewModal.submission.id, {
+        status: reviewModal.status,
+        grade: reviewModal.grade,
+        points_awarded: reviewModal.points_awarded,
+        teacher_comment: reviewModal.teacher_comment
+      });
+      // Reload submissions
+      const res = await homeworksAPI.getSubmissions(activeSubmissionsHw.id);
+      setSubmissionsData(res.data);
+      setReviewModal(null);
+      loadAll(true);
+    } catch (err) {
+      alert('Ошибка при сохранении оценки');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const copyCode = () => {
     navigator.clipboard.writeText(cls.code);
     setCopied(true);
@@ -379,6 +499,16 @@ export default function ClassPage() {
             </button>
             <button className={`tab ${tab === 'dictionary' ? 'active' : ''}`} onClick={() => setTab('dictionary')}>
               <i className="ph ph-book-open"></i> Словарь <span className="badge" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem', background: '#ccfbf1', color: '#0f766e', fontWeight: 700 }}>{dictionaryWords.length}</span>
+            </button>
+            <button className={`tab ${tab === 'homework' ? 'active' : ''}`} onClick={() => setTab('homework')}>
+              <i className="ph ph-pencil-line"></i> Домашка
+              {(() => {
+                const totalPending = homeworks.reduce((acc, h) => acc + (parseInt(h.pending_submissions) || 0), 0);
+                if (totalPending > 0) {
+                  return <span className="badge badge-orange" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem', background: '#ffedd5', color: '#c2410c', fontWeight: 800 }}>⏳ {totalPending}</span>;
+                }
+                return <span className="badge badge-blue" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem' }}>{homeworks.length}</span>;
+              })()}
             </button>
             <button className={`tab ${tab === 'students' ? 'active' : ''}`} onClick={() => setTab('students')}>
               <i className="ph ph-users"></i> Ученики <span className="badge badge-green" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem' }}>{students.length}</span>
@@ -721,6 +851,114 @@ export default function ClassPage() {
                   </div>
                 );
               })()}
+            </div>
+          )}
+
+          {/* Homework Tab */}
+          {tab === 'homework' && (
+            <div className="fade-in">
+              <div className="section-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h2><i className="ph ph-pencil-line"></i> Домашние задания</h2>
+                  <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                    Задавайте домашку к урокам, проверяйте текст, фото тетрадей и голосовые сообщения учеников
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <button className="btn btn-primary" onClick={openAddHomework}>
+                    <i className="ph ph-plus"></i> Задать домашку
+                  </button>
+                </div>
+              </div>
+
+              {homeworks.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon"><i className="ph ph-pencil-line"></i></div>
+                  <h3>Нет домашних заданий</h3>
+                  <p>Создайте первое задание, чтобы ученики могли отправлять текст, фото тетради или аудио</p>
+                  <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={openAddHomework}>
+                    <i className="ph ph-plus"></i> Задать домашку
+                  </button>
+                </div>
+              ) : (
+                <div className="grid-2">
+                  {homeworks.map((hw) => {
+                    const totalSubs = parseInt(hw.total_submissions) || 0;
+                    const pendingSubs = parseInt(hw.pending_submissions) || 0;
+                    const reviewedSubs = parseInt(hw.reviewed_submissions) || 0;
+
+                    return (
+                      <div key={hw.id} className="card slide-up hw-teacher-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                                {hw.title}
+                              </h3>
+                              <span className="badge badge-purple" style={{ fontSize: '0.8rem' }}>
+                                ⭐ +{hw.max_points || 30} XP
+                              </span>
+                              {pendingSubs > 0 && (
+                                <span className="badge badge-orange" style={{ background: '#ffedd5', color: '#c2410c', fontWeight: 800, fontSize: '0.78rem' }}>
+                                  ⏳ Ждут проверки: {pendingSubs}
+                                </span>
+                              )}
+                            </div>
+
+                            {hw.video_title && (
+                              <div style={{ fontSize: '0.82rem', color: 'var(--tiffany-dark)', fontWeight: 600, marginBottom: 8 }}>
+                                📹 Урок: {hw.video_title}
+                              </div>
+                            )}
+
+                            <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0, whiteSpace: 'pre-line' }}>
+                              {hw.description}
+                            </p>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              className="btn btn-icon btn-secondary"
+                              title="Редактировать задание"
+                              onClick={() => openEditHomework(hw)}
+                            >
+                              <i className="ph ph-pencil-simple"></i>
+                            </button>
+                            <button
+                              className="btn btn-icon"
+                              style={{ color: 'var(--danger)' }}
+                              title="Удалить задание"
+                              onClick={() => handleDeleteHomework(hw.id)}
+                            >
+                              <i className="ph ph-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Submission status row */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: 10 }}>
+                          <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                            <span>👥 Сдали: <strong>{totalSubs}</strong> из {students.length}</span>
+                            {hw.deadline && (
+                              <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>
+                                📅 Дедлайн: {new Date(hw.deadline).toLocaleDateString('ru-RU')}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => openSubmissions(hw)}
+                            style={{ gap: 6 }}
+                          >
+                            <i className="ph ph-eye"></i> Проверить ответы ({totalSubs})
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1112,6 +1350,312 @@ export default function ClassPage() {
                 </button>
                 <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
                   {saving ? 'Сохранение...' : editWord ? 'Сохранить изменения' : 'Добавить слово'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Homework Modal */}
+      {showAddHomework && (
+        <div className="modal-overlay" onClick={() => setShowAddHomework(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {editHomework ? <><i className="ph ph-pencil-simple"></i> Редактировать задание</> : <><i className="ph ph-pencil-line"></i> Задать домашнее задание</>}
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddHomework(false)}><i className="ph ph-x"></i></button>
+            </div>
+            <form onSubmit={handleSaveHomework} className="modal-form">
+              <div className="form-group">
+                <label className="form-label">Название задания *</label>
+                <input
+                  className="form-input"
+                  placeholder="Например: Unit 1: School Vocabulary & 5 sentences"
+                  value={homeworkForm.title}
+                  onChange={(e) => setHomeworkForm({ ...homeworkForm, title: e.target.value })}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Описание / Что нужно сделать *</label>
+                <textarea
+                  className="form-input"
+                  placeholder="1) Составьте 5 предложений со словами из урока.\n2) Запишите голосовое аудио или прикрепите фото тетради."
+                  value={homeworkForm.description}
+                  onChange={(e) => setHomeworkForm({ ...homeworkForm, description: e.target.value })}
+                  required
+                  rows={4}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-group">
+                  <label className="form-label">Привязать к видеоуроку</label>
+                  <select
+                    className="form-input"
+                    value={homeworkForm.video_id}
+                    onChange={(e) => setHomeworkForm({ ...homeworkForm, video_id: e.target.value })}
+                  >
+                    <option value="">Без привязки (к теме)</option>
+                    {videos.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {v.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Награда (XP)</label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="100"
+                    className="form-input"
+                    value={homeworkForm.max_points}
+                    onChange={(e) => setHomeworkForm({ ...homeworkForm, max_points: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Срок сдачи (Дедлайн)</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={homeworkForm.deadline}
+                  onChange={(e) => setHomeworkForm({ ...homeworkForm, deadline: e.target.value })}
+                />
+              </div>
+
+              {error && <div className="alert alert-error">{error}</div>}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <button type="button" className="btn btn-secondary btn-full" onClick={() => setShowAddHomework(false)}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
+                  {saving ? 'Сохранение...' : editHomework ? 'Сохранить изменения' : 'Задать задание'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Submissions List Modal */}
+      {activeSubmissionsHw && (
+        <div className="modal-overlay" onClick={() => setActiveSubmissionsHw(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title" style={{ margin: 0 }}>
+                  <i className="ph ph-users"></i> Ответы учеников
+                </h3>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                  Задание: <strong>{activeSubmissionsHw.title}</strong>
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setActiveSubmissionsHw(null)}><i className="ph ph-x"></i></button>
+            </div>
+
+            {/* Filter pills */}
+            <div style={{ display: 'flex', gap: 8, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${submissionFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSubmissionFilter('all')}
+              >
+                Все ({submissionsData.submissions.length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${submissionFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSubmissionFilter('pending')}
+              >
+                ⏳ Ждут проверки ({submissionsData.submissions.filter(s => s.status === 'pending').length})
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${submissionFilter === 'reviewed' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSubmissionFilter('reviewed')}
+              >
+                ✅ Проверено ({submissionsData.submissions.filter(s => s.status === 'reviewed').length})
+              </button>
+            </div>
+
+            {/* Submissions Body */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '16px 0' }}>
+              {loadingSubmissions ? (
+                <div style={{ textAlign: 'center', padding: 40 }}>Загрузка ответов...</div>
+              ) : (() => {
+                const filteredSubs = submissionsData.submissions.filter(s => {
+                  if (submissionFilter === 'pending') return s.status === 'pending';
+                  if (submissionFilter === 'reviewed') return s.status === 'reviewed';
+                  return true;
+                });
+
+                if (filteredSubs.length === 0) {
+                  return (
+                    <div className="empty-state" style={{ padding: '32px 0' }}>
+                      <div className="empty-state-icon"><i className="ph ph-tray"></i></div>
+                      <h4>Ответов пока нет</h4>
+                      <p>Ученики ещё не отправили выполненное задание</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {filteredSubs.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className="card"
+                        style={{
+                          padding: '18px 20px',
+                          border: sub.status === 'pending' ? '2px solid #fdba74' : '1px solid var(--border)',
+                          background: sub.status === 'pending' ? '#fffaf5' : '#ffffff'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <strong style={{ fontSize: '1.05rem', color: 'var(--text-primary)' }}>{sub.student_name}</strong>
+                              {sub.status === 'pending' ? (
+                                <span className="badge badge-orange" style={{ background: '#ffedd5', color: '#c2410c', fontWeight: 800 }}>
+                                  ⏳ Ждёт проверки
+                                </span>
+                              ) : (
+                                <span className="badge badge-green">
+                                  ✅ Проверено {sub.grade ? `(${sub.grade}★)` : ''} • +{sub.points_awarded || 0} XP
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              Сдано: {new Date(sub.submitted_at).toLocaleString('ru-RU')}
+                            </div>
+                          </div>
+
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => openReviewModal(sub)}
+                          >
+                            {sub.status === 'pending' ? '⭐ Оценить и дать XP' : '✏️ Изменить оценку'}
+                          </button>
+                        </div>
+
+                        {/* Student text content */}
+                        {sub.text_content && (
+                          <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 10, fontSize: '0.92rem', color: '#1e293b', marginBottom: 10, whiteSpace: 'pre-line', border: '1px solid #e2e8f0' }}>
+                            💬 <strong>Ответ:</strong><br />
+                            {sub.text_content}
+                          </div>
+                        )}
+
+                        {/* Student Photo */}
+                        {sub.media_url && (
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                              📸 Фото тетради / Задания:
+                            </div>
+                            <a href={sub.media_url} target="_blank" rel="noreferrer">
+                              <img
+                                src={sub.media_url}
+                                alt="Homework photo"
+                                style={{ maxHeight: 220, borderRadius: 10, border: '1px solid var(--border)', objectFit: 'cover' }}
+                              />
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Student Audio recording */}
+                        {sub.audio_url && (
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                              🎤 Голосовое аудио ученика:
+                            </div>
+                            <audio controls src={sub.audio_url} style={{ width: '100%', height: 42 }} />
+                          </div>
+                        )}
+
+                        {/* Teacher's existing comment if reviewed */}
+                        {sub.teacher_comment && (
+                          <div style={{ background: '#f0fdfa', padding: '10px 14px', borderRadius: 8, fontSize: '0.86rem', color: '#0f766e', border: '1px solid #ccfbf1' }}>
+                            👩‍🏫 <strong>Ваш комментарий:</strong> {sub.teacher_comment}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review & Grade Submission Modal */}
+      {reviewModal && (
+        <div className="modal-overlay" onClick={() => setReviewModal(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                ⭐ Оценить работу: {reviewModal.submission.student_name}
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setReviewModal(null)}><i className="ph ph-x"></i></button>
+            </div>
+            <form onSubmit={handleSaveReview} className="modal-form">
+              <div className="form-group">
+                <label className="form-label">Оценка (1 - 5 звезд)</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[5, 4, 3, 2, 1].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      className={`btn ${reviewModal.grade === num ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setReviewModal({ ...reviewModal, grade: num })}
+                      style={{ flex: 1, fontWeight: 800 }}
+                    >
+                      {num} ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Начислить баллы в рейтинг (XP)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="form-input"
+                  value={reviewModal.points_awarded}
+                  onChange={(e) => setReviewModal({ ...reviewModal, points_awarded: parseInt(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Комментарий учителя (обратная связь)</label>
+                <textarea
+                  className="form-input"
+                  placeholder="Например: Азаматсың! Молодец! Отличное произношение."
+                  value={reviewModal.teacher_comment}
+                  onChange={(e) => setReviewModal({ ...reviewModal, teacher_comment: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <button type="button" className="btn btn-secondary btn-full" onClick={() => setReviewModal(null)}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
+                  {saving ? 'Сохранение...' : '✅ Одобрить и начислить XP'}
                 </button>
               </div>
             </form>

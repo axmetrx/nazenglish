@@ -118,6 +118,39 @@ const initDB = async () => {
       )
     `);
 
+    // Homeworks table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS homeworks (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+        video_id UUID REFERENCES videos(id) ON DELETE SET NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        deadline TIMESTAMP WITH TIME ZONE,
+        max_points INTEGER DEFAULT 30,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Homework submissions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS homework_submissions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        homework_id UUID REFERENCES homeworks(id) ON DELETE CASCADE,
+        student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+        text_content TEXT,
+        media_url TEXT,
+        audio_url TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        grade INTEGER,
+        points_awarded INTEGER DEFAULT 0,
+        teacher_comment TEXT,
+        submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TIMESTAMP WITH TIME ZONE,
+        UNIQUE(homework_id, student_id)
+      )
+    `);
+
     // Add missing columns to students if they don't exist
     await pool.query(`
       ALTER TABLE students 
