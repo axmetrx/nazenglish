@@ -12,15 +12,21 @@ import { t } from '../utils/translations';
 
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
+  const [iframeError, setIframeError] = React.useState(false);
+
   let embedUrl = null;
   let directUrl = url;
+  let driveFileId = null;
 
+  // Google Drive
   let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
   if (match) {
-    embedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
-    directUrl = `https://drive.google.com/file/d/${match[1]}/view?usp=sharing`;
+    driveFileId = match[1];
+    embedUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
+    directUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
   }
 
+  // YouTube
   if (!embedUrl) {
     match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
     if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0`;
@@ -34,27 +40,39 @@ function VideoPlayerFrame({ url, title }) {
 
   return (
     <div className="video-player-box">
-      {embedUrl ? (
+      {embedUrl && !iframeError ? (
         <iframe
           src={embedUrl}
           title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; cross-origin-isolated"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
+          referrerPolicy="no-referrer"
+          loading="eager"
           className="video-player-frame"
+          onError={() => setIframeError(true)}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'linear-gradient(135deg, var(--tiffany), var(--tiffany-darker))', color: '#fff', padding: 24, textAlign: 'center' }}>
-          <i className="ph-fill ph-video-camera" style={{ fontSize: '3rem', marginBottom: 12, opacity: 0.85 }}></i>
-          <h4 style={{ color: '#fff', marginBottom: 12, fontSize: '1.1rem' }}>{title}</h4>
-        </div>
+        /* Fallback: big play button that opens video directly */
+        <a
+          href={directUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="video-fallback-play"
+        >
+          <div className="vfp-icon">▶</div>
+          <div className="vfp-text">{title || 'Видео'}</div>
+          <div className="vfp-sub">Видеону ачуу үчүн басыңыз ↗</div>
+        </a>
       )}
 
-      <div className="video-drive-fallback">
-        <span className="vdf-hint">💡 Видео ачылбай жатабы?</span>
-        <a href={directUrl} target="_blank" rel="noreferrer" className="vdf-link">
-          <i className="ph ph-arrow-square-out"></i> Google Дискте ачуу
-        </a>
-      </div>
+      {driveFileId && (
+        <div className="video-drive-fallback">
+          <span className="vdf-hint">📱 Телефондо ачылбаса:</span>
+          <a href={directUrl} target="_blank" rel="noreferrer" className="vdf-link">
+            <i className="ph ph-arrow-square-out"></i> Google Дискте ачуу
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -1134,6 +1152,54 @@ export default function Student() {
           aspect-ratio: 16/9;
           border: none;
           display: block;
+        }
+
+        .video-fallback-play {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          aspect-ratio: 16/9;
+          background: linear-gradient(135deg, #1e293b, #0f172a);
+          color: #fff;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .video-fallback-play:hover {
+          background: linear-gradient(135deg, #334155, #1e293b);
+        }
+
+        .vfp-icon {
+          font-size: 3.5rem;
+          width: 80px;
+          height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(10px);
+          margin-bottom: 16px;
+          transition: transform 0.2s;
+        }
+
+        .video-fallback-play:hover .vfp-icon {
+          transform: scale(1.1);
+          background: rgba(10, 186, 181, 0.4);
+        }
+
+        .vfp-text {
+          font-size: 1.1rem;
+          font-weight: 700;
+          margin-bottom: 6px;
+        }
+
+        .vfp-sub {
+          font-size: 0.85rem;
+          opacity: 0.7;
+          font-weight: 500;
         }
 
         .video-drive-fallback {
