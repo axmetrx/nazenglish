@@ -83,6 +83,7 @@ export const videosAPI = {
 // ─── Students ────────────────────────────────────────────────
 export const studentsAPI = {
   join: (data) => api.post('/students/join', data),
+  login: (data) => api.post('/students/login', data),
   getClass: () => api.get('/students/class'),
   getLeaderboard: () => api.get('/students/leaderboard/class'),
   getWeeklyActivity: () => api.get('/students/activity/weekly'),

@@ -1,13 +1,14 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { classStore, studentStore, videoStore } = require('../store');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'englishclass_super_secret_2024';
 
-// POST /api/students/join — ученик входит по имени + коду класса
+// POST /api/students/join — регистрация ученика (имя + код класса + email + пароль)
 router.post('/join', async (req, res) => {
   try {
-    const { name, code } = req.body;
+    const { name, code, email, password } = req.body;
     if (!name || !code)
       return res.status(400).json({ message: 'Введите имя и код класса' });
 
@@ -15,13 +16,42 @@ router.post('/join', async (req, res) => {
     if (!cls)
       return res.status(404).json({ message: 'Класс с таким кодом не найден' });
 
-    // Создаём ученика (каждый раз при входе — новая запись)
+    // Если указан email+password — регистрация с аккаунтом
+    if (email && password) {
+      if (password.length < 4)
+        return res.status(400).json({ message: 'Пароль минимум 4 символа' });
+
+      const existing = await studentStore.findByEmail(email.trim().toLowerCase());
+      if (existing)
+        return res.status(409).json({ message: 'Этот email уже зарегистрирован. Войдите через "Вход"' });
+
+      const password_hash = await bcrypt.hash(password, 10);
+      const student = await studentStore.create({
+        classId: cls.id,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password: password_hash,
+      });
+
+      const token = jwt.sign(
+        { studentId: student.id, classId: cls.id, name: student.name },
+        JWT_SECRET,
+        { expiresIn: '90d' }
+      );
+
+      return res.json({
+        token,
+        student: { id: student.id, name: student.name, email: student.email },
+        class: { id: cls.id, name: cls.name, description: cls.description },
+      });
+    }
+
+    // Без email — обычный вход по имени (как раньше)
     const student = await studentStore.create({
       classId: cls.id,
       name: name.trim(),
     });
 
-    // Выдаём токен ученику
     const token = jwt.sign(
       { studentId: student.id, classId: cls.id, name: student.name },
       JWT_SECRET,
@@ -34,6 +64,45 @@ router.post('/join', async (req, res) => {
       class: { id: cls.id, name: cls.name, description: cls.description },
     });
   } catch (err) {
+    console.error('❌ /students/join error:', err.message);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+});
+
+// POST /api/students/login — вход ученика по email + пароль
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ message: 'Введите email и пароль' });
+
+    const student = await studentStore.findByEmail(email.trim().toLowerCase());
+    if (!student || !student.password)
+      return res.status(401).json({ message: 'Неверный email или пароль' });
+
+    const isValid = await bcrypt.compare(password, student.password);
+    if (!isValid)
+      return res.status(401).json({ message: 'Неверный email или пароль' });
+
+    // Обновить last_active_at
+    const db = require('../db');
+    await db.query('UPDATE students SET last_active_at = NOW() WHERE id = $1', [student.id]);
+
+    const cls = await classStore.findById(student.classId);
+
+    const token = jwt.sign(
+      { studentId: student.id, classId: student.classId, name: student.name },
+      JWT_SECRET,
+      { expiresIn: '90d' }
+    );
+
+    res.json({
+      token,
+      student: { id: student.id, name: student.name, email: student.email },
+      class: cls ? { id: cls.id, name: cls.name, description: cls.description } : null,
+    });
+  } catch (err) {
+    console.error('❌ /students/login error:', err.message);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 });

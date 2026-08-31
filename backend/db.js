@@ -109,7 +109,15 @@ const initDB = async () => {
     await pool.query(`
       ALTER TABLE students 
       ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS email VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS password VARCHAR(255);
+    `);
+
+    // Add unique index on email (only for non-null emails)
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS students_email_unique 
+      ON students (email) WHERE email IS NOT NULL;
     `);
 
     console.log('✅ PostgreSQL tables initialized');

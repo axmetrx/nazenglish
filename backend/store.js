@@ -171,7 +171,19 @@ const studentStore = {
     if (!res.rows[0]) return null;
     return { ...res.rows[0], classId: res.rows[0].class_id, joinedAt: res.rows[0].joined_at };
   },
+  findByEmail: async (email) => {
+    const res = await db.query('SELECT * FROM students WHERE email = $1', [email]);
+    if (!res.rows[0]) return null;
+    return { ...res.rows[0], classId: res.rows[0].class_id, joinedAt: res.rows[0].joined_at };
+  },
   create: async (data) => {
+    if (data.email && data.password) {
+      const res = await db.query(
+        'INSERT INTO students (class_id, name, email, password) VALUES ($1, $2, $3, $4) RETURNING *',
+        [data.classId, data.name, data.email, data.password]
+      );
+      return { ...res.rows[0], classId: res.rows[0].class_id, joinedAt: res.rows[0].joined_at };
+    }
     const res = await db.query(
       'INSERT INTO students (class_id, name) VALUES ($1, $2) RETURNING *',
       [data.classId, data.name]

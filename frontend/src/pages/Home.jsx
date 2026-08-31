@@ -5,8 +5,11 @@ import Navbar from '../components/Navbar';
 import { t } from '../utils/translations';
 
 export default function Home() {
+  const [authTab, setAuthTab] = useState('register'); // 'register' | 'login'
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [, setLangTick] = useState(0);
@@ -24,19 +27,50 @@ export default function Home() {
     return () => window.removeEventListener('languageChange', handleLangChange);
   }, []);
 
-  const handleJoin = async (e) => {
+  // Регистрация — имя + код класса + email + пароль
+  const handleRegister = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !code.trim()) {
+    if (!name.trim() || !code.trim() || !email.trim() || !password.trim()) {
       setError(t('fillAllFields'));
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const res = await studentsAPI.join({ name: name.trim(), code: code.trim() });
+      const res = await studentsAPI.join({
+        name: name.trim(),
+        code: code.trim(),
+        email: email.trim(),
+        password: password,
+      });
       const { token, student, class: cls } = res.data;
       localStorage.setItem('student_token', token);
       localStorage.setItem('student_data', JSON.stringify({ ...student, className: cls.name }));
+      navigate('/student');
+    } catch (err) {
+      setError(err.response?.data?.message || t('loginError'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Вход — email + пароль
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setError(t('fillAllFields'));
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await studentsAPI.login({
+        email: email.trim(),
+        password: password,
+      });
+      const { token, student, class: cls } = res.data;
+      localStorage.setItem('student_token', token);
+      localStorage.setItem('student_data', JSON.stringify({ ...student, className: cls?.name || '' }));
       navigate('/student');
     } catch (err) {
       setError(err.response?.data?.message || t('loginError'));
@@ -115,62 +149,156 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Login Card ── */}
+        {/* ── Auth Card with Tabs ── */}
         <div className="home-login-card slide-up">
-          <div className="home-login-header">
-            <h2>{t('joinClass')}</h2>
-            <p>{t('enterCodeAndName')}</p>
+          {/* Tab Switcher */}
+          <div className="auth-tabs">
+            <button
+              className={`auth-tab ${authTab === 'register' ? 'active' : ''}`}
+              onClick={() => { setAuthTab('register'); setError(''); }}
+            >
+              📝 {t('register')}
+            </button>
+            <button
+              className={`auth-tab ${authTab === 'login' ? 'active' : ''}`}
+              onClick={() => { setAuthTab('login'); setError(''); }}
+            >
+              🔑 {t('login')}
+            </button>
           </div>
 
-          <form onSubmit={handleJoin}>
-            <div className="hf-group">
-              <label className="hf-label">{t('enterName')}</label>
-              <input
-                id="student-name"
-                className="hf-input"
-                type="text"
-                placeholder={t('namePlaceholder')}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="hf-group">
-              <label className="hf-label">{t('enterCode')}</label>
-              <input
-                id="class-code"
-                className="hf-input hf-code"
-                type="text"
-                placeholder={t('codePlaceholder')}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                maxLength={10}
-                autoComplete="off"
-              />
-            </div>
-
-            {error && (
-              <div className="hf-error">
-                ⚠️ {error}
+          {authTab === 'register' ? (
+            /* ── Register Form ── */
+            <form onSubmit={handleRegister}>
+              <div className="home-login-header">
+                <h2>{t('register')}</h2>
+                <p>{t('registerDesc')}</p>
               </div>
-            )}
 
-            <button
-              id="join-btn"
-              type="submit"
-              className="hf-submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="hf-loading">
-                  <span className="hf-spinner" /> {t('loggingIn')}
-                </span>
-              ) : (
-                <>→ {t('joinClass')}</>
+              <div className="hf-group">
+                <label className="hf-label">{t('enterName')}</label>
+                <input
+                  className="hf-input"
+                  type="text"
+                  placeholder={t('namePlaceholder')}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="hf-group">
+                <label className="hf-label">{t('enterCode')}</label>
+                <input
+                  className="hf-input hf-code"
+                  type="text"
+                  placeholder={t('codePlaceholder')}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  maxLength={10}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="hf-group">
+                <label className="hf-label">📧 Email</label>
+                <input
+                  className="hf-input"
+                  type="email"
+                  placeholder="student@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="hf-group">
+                <label className="hf-label">🔒 {t('password')}</label>
+                <input
+                  className="hf-input"
+                  type="password"
+                  placeholder="••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              {error && (
+                <div className="hf-error">⚠️ {error}</div>
               )}
-            </button>
-          </form>
+
+              <button type="submit" className="hf-submit" disabled={loading}>
+                {loading ? (
+                  <span className="hf-loading">
+                    <span className="hf-spinner" /> {t('loggingIn')}
+                  </span>
+                ) : (
+                  <>📝 {t('register')}</>
+                )}
+              </button>
+
+              <div className="auth-switch">
+                {t('alreadyHaveAccount')}{' '}
+                <button type="button" className="auth-switch-btn" onClick={() => { setAuthTab('login'); setError(''); }}>
+                  {t('login')} →
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* ── Login Form ── */
+            <form onSubmit={handleLogin}>
+              <div className="home-login-header">
+                <h2>{t('login')}</h2>
+                <p>{t('loginDesc')}</p>
+              </div>
+
+              <div className="hf-group">
+                <label className="hf-label">📧 Email</label>
+                <input
+                  className="hf-input"
+                  type="email"
+                  placeholder="student@gmail.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="hf-group">
+                <label className="hf-label">🔒 {t('password')}</label>
+                <input
+                  className="hf-input"
+                  type="password"
+                  placeholder="••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {error && (
+                <div className="hf-error">⚠️ {error}</div>
+              )}
+
+              <button type="submit" className="hf-submit" disabled={loading}>
+                {loading ? (
+                  <span className="hf-loading">
+                    <span className="hf-spinner" /> {t('loggingIn')}
+                  </span>
+                ) : (
+                  <>🔑 {t('login')}</>
+                )}
+              </button>
+
+              <div className="auth-switch">
+                {t('noAccount')}{' '}
+                <button type="button" className="auth-switch-btn" onClick={() => { setAuthTab('register'); setError(''); }}>
+                  {t('register')} →
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
 
@@ -400,12 +528,67 @@ export default function Home() {
           background: #ffffff;
           border: 1.5px solid var(--border);
           border-radius: 24px;
-          padding: 28px 24px 32px;
+          padding: 0;
           box-shadow: 0 12px 40px rgba(10, 186, 181, 0.15);
+          overflow: hidden;
+        }
+
+        .home-login-card form {
+          padding: 0 24px 28px;
+        }
+
+        /* ── Auth Tabs ── */
+        .auth-tabs {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          border-bottom: 1.5px solid var(--border);
+        }
+
+        .auth-tab {
+          padding: 14px 10px;
+          font-size: 0.95rem;
+          font-weight: 700;
+          font-family: inherit;
+          background: #f8fafc;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .auth-tab.active {
+          background: #fff;
+          color: var(--tiffany-dark);
+          box-shadow: inset 0 -3px 0 var(--tiffany);
+        }
+
+        .auth-tab:hover:not(.active) {
+          background: #f1f5f9;
+        }
+
+        .auth-switch {
+          text-align: center;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid var(--border);
+        }
+
+        .auth-switch-btn {
+          background: none;
+          border: none;
+          color: var(--tiffany-dark);
+          font-weight: 700;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 0.85rem;
+          text-decoration: underline;
         }
 
         .home-login-header {
           margin-bottom: 20px;
+          padding-top: 24px;
           text-align: left;
         }
 
