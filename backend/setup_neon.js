@@ -350,7 +350,7 @@ async function main() {
     classes.forEach(c => console.log(`  ${c.name}: ${c.code}`));
     console.log('\n⚠️  Видео добавлены с временными ссылками!');
     console.log('   Замените PLACEHOLDER ссылки на реальные Google Drive URL.');
-    console.log('\nВход учителя: код 7777');
+    console.log('\nВход учителя: код naz777');
 
   } catch (err) {
     console.error('\n❌ Ошибка:', err.message);

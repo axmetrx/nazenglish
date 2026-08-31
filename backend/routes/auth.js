@@ -63,7 +63,7 @@ router.post('/login', async (req, res) => {
 router.post('/guest', async (req, res) => {
   try {
     const { code } = req.body;
-    const SECRET_CODE = process.env.TEACHER_CODE || '7777';
+    const SECRET_CODE = process.env.TEACHER_CODE || 'naz777';
 
     if (!code || code.toString().trim() !== SECRET_CODE.toString().trim()) {
       return res.status(401).json({ message: 'Неверный секретный код' });
