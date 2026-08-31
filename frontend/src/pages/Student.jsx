@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { studentsAPI, gamesAPI } from '../api/api';
 import VideoCard from '../components/VideoCard';
@@ -13,6 +13,8 @@ import { t } from '../utils/translations';
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
   const [iframeError, setIframeError] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const playerBoxRef = useRef(null);
 
   let embedUrl = null;
   let directUrl = url;
@@ -29,23 +31,78 @@ function VideoPlayerFrame({ url, title }) {
   // YouTube
   if (!embedUrl) {
     match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
-    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0`;
+    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0&playsinline=1`;
   }
   if (!embedUrl) {
     match = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
-    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?playsinline=1`;
   }
   if (!embedUrl && url.includes('drive.google.com') && url.includes('preview')) embedUrl = url;
   if (!embedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com'))) embedUrl = url;
 
+  // Fullscreen event listener
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isFs);
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    document.addEventListener('mozfullscreenchange', handleFsChange);
+    document.addEventListener('MSFullscreenChange', handleFsChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+      document.removeEventListener('mozfullscreenchange', handleFsChange);
+      document.removeEventListener('MSFullscreenChange', handleFsChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!playerBoxRef.current) return;
+    const el = playerBoxRef.current;
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      } else if (el.mozRequestFullScreen) {
+        el.mozRequestFullScreen();
+      } else if (el.msRequestFullscreen) {
+        el.msRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+  };
+
   return (
-    <div className="video-player-box">
+    <div ref={playerBoxRef} className={`video-player-box ${isFullscreen ? 'is-fullscreen' : ''}`}>
+      {/* Video frame or fallback */}
       {embedUrl && !iframeError ? (
         <iframe
           src={embedUrl}
           title={title}
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+          allowFullScreen={true}
+          webkitallowfullscreen="true"
+          mozallowfullscreen="true"
           referrerPolicy="no-referrer"
           loading="eager"
           className="video-player-frame"
@@ -61,18 +118,44 @@ function VideoPlayerFrame({ url, title }) {
         >
           <div className="vfp-icon">▶</div>
           <div className="vfp-text">{title || 'Видео'}</div>
-          <div className="vfp-sub">Видеону ачуу үчүн басыңыз ↗</div>
+          <div className="vfp-sub">{t('openVideo')} ↗</div>
         </a>
       )}
 
-      {driveFileId && (
-        <div className="video-drive-fallback">
-          <span className="vdf-hint">📱 Телефондо ачылбаса:</span>
-          <a href={directUrl} target="_blank" rel="noreferrer" className="vdf-link">
-            <i className="ph ph-arrow-square-out"></i> Google Дискте ачуу
-          </a>
-        </div>
+      {/* Floating Fullscreen Exit Button (visible only in fullscreen mode) */}
+      {isFullscreen && (
+        <button
+          className="vdf-fs-close-btn"
+          onClick={toggleFullscreen}
+          title={t('exitFullscreen')}
+        >
+          ✕ {t('exitFullscreen')}
+        </button>
       )}
+
+      {/* Responsive Player Control Bar */}
+      <div className="video-player-controls-bar">
+        <button
+          type="button"
+          className="vdf-btn vdf-fs-btn"
+          onClick={toggleFullscreen}
+        >
+          <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
+          <span>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
+        </button>
+
+        {driveFileId && (
+          <a
+            href={directUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="vdf-btn vdf-drive-btn"
+          >
+            <i className="ph-bold ph-arrow-square-out"></i>
+            <span>Google Дискте ачуу</span>
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -1141,10 +1224,12 @@ export default function Student() {
           box-shadow: var(--shadow-sm);
         }
 
-        /* ── Video Player & Fallback ── */
+        /* ── Video Player & Fullscreen ── */
         .video-player-box {
+          position: relative;
           width: 100%;
           background: #000;
+          overflow: hidden;
         }
 
         .video-player-frame {
@@ -1152,6 +1237,107 @@ export default function Student() {
           aspect-ratio: 16/9;
           border: none;
           display: block;
+        }
+
+        /* ── Video Controls Bar ── */
+        .video-player-controls-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          background: #f8fafc;
+          padding: 10px 16px;
+          border-bottom: 1.5px solid var(--border);
+          flex-wrap: wrap;
+        }
+
+        .vdf-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 0.88rem;
+          font-weight: 700;
+          font-family: inherit;
+          padding: 8px 16px;
+          border-radius: 10px;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: 1px solid transparent;
+        }
+
+        .vdf-fs-btn {
+          background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
+          color: #ffffff;
+          box-shadow: 0 4px 12px rgba(10, 186, 181, 0.25);
+        }
+
+        .vdf-fs-btn:hover {
+          background: linear-gradient(135deg, var(--tiffany-dark), #0369a1);
+          transform: translateY(-1px);
+        }
+
+        .vdf-drive-btn {
+          background: #ffffff;
+          color: #0f766e;
+          border: 1.5px solid #ccfbf1;
+        }
+
+        .vdf-drive-btn:hover {
+          background: #f0fdfa;
+          border-color: var(--tiffany);
+        }
+
+        /* ── Floating Fullscreen Exit Button ── */
+        .vdf-fs-close-btn {
+          position: fixed;
+          top: 16px;
+          right: 16px;
+          z-index: 2147483647;
+          background: rgba(0, 0, 0, 0.8);
+          color: #fff;
+          border: 1.5px solid rgba(255, 255, 255, 0.4);
+          padding: 8px 16px;
+          border-radius: 100px;
+          font-size: 0.9rem;
+          font-weight: 700;
+          cursor: pointer;
+          backdrop-filter: blur(8px);
+          font-family: inherit;
+        }
+
+        /* ── Fullscreen Pseudo State (Standard & WebKit) ── */
+        .video-player-box:fullscreen,
+        .video-player-box:-webkit-full-screen,
+        .video-player-box.is-fullscreen {
+          width: 100vw !important;
+          height: 100vh !important;
+          background: #000000 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+          align-items: center !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          border-radius: 0 !important;
+          z-index: 2147483646;
+        }
+
+        .video-player-box:fullscreen .video-player-frame,
+        .video-player-box:-webkit-full-screen .video-player-frame,
+        .video-player-box.is-fullscreen .video-player-frame {
+          width: 100% !important;
+          height: 100% !important;
+          max-height: 100vh !important;
+          aspect-ratio: auto !important;
+          border-radius: 0 !important;
+          object-fit: contain;
+        }
+
+        .video-player-box:fullscreen .video-player-controls-bar,
+        .video-player-box:-webkit-full-screen .video-player-controls-bar,
+        .video-player-box.is-fullscreen .video-player-controls-bar {
+          display: none !important;
         }
 
         .video-fallback-play {
@@ -1200,42 +1386,6 @@ export default function Student() {
           font-size: 0.85rem;
           opacity: 0.7;
           font-weight: 500;
-        }
-
-        .video-drive-fallback {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          background: #f8fafc;
-          padding: 10px 16px;
-          border-bottom: 1px solid var(--border);
-          flex-wrap: wrap;
-        }
-
-        .vdf-hint {
-          font-size: 0.82rem;
-          color: #64748b;
-          font-weight: 600;
-        }
-
-        .vdf-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 0.82rem;
-          font-weight: 700;
-          color: #087f7b;
-          background: rgba(10, 186, 181, 0.12);
-          border: 1px solid rgba(10, 186, 181, 0.25);
-          padding: 5px 12px;
-          border-radius: 8px;
-          text-decoration: none;
-          transition: all 0.2s;
-        }
-
-        .vdf-link:hover {
-          background: rgba(10, 186, 181, 0.2);
         }
 
         /* ── Card Body & Meta Bar ── */
