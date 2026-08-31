@@ -13,9 +13,13 @@ import { t } from '../utils/translations';
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
   let embedUrl = null;
+  let directUrl = url;
 
   let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
-  if (match) embedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+  if (match) {
+    embedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+    directUrl = `https://drive.google.com/file/d/${match[1]}/view?usp=sharing`;
+  }
 
   if (!embedUrl) {
     match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
@@ -28,25 +32,29 @@ function VideoPlayerFrame({ url, title }) {
   if (!embedUrl && url.includes('drive.google.com') && url.includes('preview')) embedUrl = url;
   if (!embedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com'))) embedUrl = url;
 
-  if (embedUrl) {
-    return (
-      <iframe
-        src={embedUrl}
-        title={title}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-      />
-    );
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'linear-gradient(135deg, var(--tiffany), var(--tiffany-darker))', color: '#fff', padding: 24, textAlign: 'center' }}>
-      <i className="ph-fill ph-video-camera" style={{ fontSize: '3rem', marginBottom: 12, opacity: 0.85 }}></i>
-      <h4 style={{ color: '#fff', marginBottom: 12, fontSize: '1.1rem' }}>{title}</h4>
-      <a href={url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ background: '#fff', color: 'var(--tiffany-dark)', fontWeight: 600 }}>
-        <i className="ph ph-arrow-square-out"></i> {t('openVideo')}
-      </a>
+    <div className="video-player-box">
+      {embedUrl ? (
+        <iframe
+          src={embedUrl}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; cross-origin-isolated"
+          allowFullScreen
+          className="video-player-frame"
+        />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', background: 'linear-gradient(135deg, var(--tiffany), var(--tiffany-darker))', color: '#fff', padding: 24, textAlign: 'center' }}>
+          <i className="ph-fill ph-video-camera" style={{ fontSize: '3rem', marginBottom: 12, opacity: 0.85 }}></i>
+          <h4 style={{ color: '#fff', marginBottom: 12, fontSize: '1.1rem' }}>{title}</h4>
+        </div>
+      )}
+
+      <div className="video-drive-fallback">
+        <span className="vdf-hint">💡 Видео ачылбай жатабы?</span>
+        <a href={directUrl} target="_blank" rel="noreferrer" className="vdf-link">
+          <i className="ph ph-arrow-square-out"></i> Google Дискте ачуу
+        </a>
+      </div>
     </div>
   );
 }
@@ -353,8 +361,6 @@ export default function Student() {
                             <i className={`ph ${active ? 'ph-play-circle' : 'ph-video'}`}></i>
                           )}
                           <span>{i + 1}-{t('lesson')}</span>
-                          {!unlocked && <span className="seq-lock-badge">🔒</span>}
-                          {completed && <span className="seq-check-badge">✓</span>}
                         </button>
                       );
                     })}
@@ -383,7 +389,7 @@ export default function Student() {
                             }}
                             style={{ minWidth: 200 }}
                           >
-                            👈 {t('open')} {currentLessonIndex}-{t('lesson')}
+                            👈 {lastUnlocked + 1}-{t('lesson')} ({t('open')})
                           </button>
                         </div>
                       </div>
@@ -398,29 +404,29 @@ export default function Student() {
                         </div>
 
                         <div className="seq-card-body">
-                          <div className="seq-meta-row">
-                            <div className="badge badge-green" style={{ fontSize: '0.85rem' }}>
-                              <i className="ph ph-check-circle"></i> {t('lesson')} {currentLessonIndex + 1}
+                          <div className="seq-meta-bar">
+                            <div className="seq-meta-left">
+                              <span className="badge badge-green">
+                                <i className="ph ph-check-circle"></i> {t('lesson')} {currentLessonIndex + 1}
+                              </span>
+                              <span className="seq-counter-text">
+                                {currentLessonIndex + 1} {t('ofTotal')} {videos.length}
+                              </span>
                             </div>
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+
+                            <div className="seq-meta-right">
                               {completedVideoIds.has(videos[currentLessonIndex].id) ? (
-                                <span className="badge badge-purple" style={{ fontSize: '0.85rem', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
+                                <span className="seq-badge-done">
                                   <i className="ph-fill ph-check-circle"></i> {t('completed')} (+10 XP)
                                 </span>
                               ) : (
                                 <button
-                                  className="btn btn-secondary btn-sm"
+                                  className="seq-btn-complete"
                                   onClick={() => handleCompleteLesson(videos[currentLessonIndex])}
-                                  style={{ borderColor: 'var(--tiffany)', color: 'var(--tiffany-dark)', fontWeight: 700, background: 'var(--tiffany-xlight)' }}
                                 >
-                                  ✅ {t('completeLesson')}
+                                  <i className="ph-bold ph-check"></i> {t('completeLesson')}
                                 </button>
                               )}
-
-                              <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                {currentLessonIndex + 1} {t('ofTotal')} {videos.length}
-                              </span>
                             </div>
                           </div>
 
@@ -435,28 +441,26 @@ export default function Student() {
                           )}
 
                           {/* Navigation Buttons: Previous / Next */}
-                          <div className="seq-nav-actions">
+                          <div className="seq-nav-grid">
                             <button
-                              className="btn btn-secondary"
+                              className="btn btn-secondary seq-nav-btn"
                               disabled={currentLessonIndex === 0}
                               onClick={() => setCurrentLessonIndex(prev => Math.max(0, prev - 1))}
-                              style={{ minWidth: 160 }}
                             >
                               <i className="ph ph-arrow-left"></i> {t('prevLesson')}
                             </button>
 
                             {currentLessonIndex < videos.length - 1 ? (
                               <button
-                                className="btn btn-primary"
+                                className="btn btn-primary seq-nav-btn"
                                 onClick={handleNextLesson}
-                                style={{ minWidth: 160 }}
                               >
                                 {t('nextLesson')} <i className="ph ph-arrow-right"></i>
                               </button>
                             ) : (
                               <button
-                                className="btn btn-primary"
-                                style={{ minWidth: 160, background: 'linear-gradient(135deg, #059669, #047857)' }}
+                                className="btn btn-primary seq-nav-btn"
+                                style={{ background: 'linear-gradient(135deg, #059669, #047857)' }}
                                 onClick={() => {
                                   handleCompleteLesson(videos[currentLessonIndex]);
                                   setTab('games');
@@ -1119,23 +1123,120 @@ export default function Student() {
           box-shadow: var(--shadow-sm);
         }
 
-        .seq-video-frame {
+        /* ── Video Player & Fallback ── */
+        .video-player-box {
           width: 100%;
-          aspect-ratio: 16/9;
           background: #000;
         }
 
+        .video-player-frame {
+          width: 100%;
+          aspect-ratio: 16/9;
+          border: none;
+          display: block;
+        }
+
+        .video-drive-fallback {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          background: #f8fafc;
+          padding: 10px 16px;
+          border-bottom: 1px solid var(--border);
+          flex-wrap: wrap;
+        }
+
+        .vdf-hint {
+          font-size: 0.82rem;
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .vdf-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #087f7b;
+          background: rgba(10, 186, 181, 0.12);
+          border: 1px solid rgba(10, 186, 181, 0.25);
+          padding: 5px 12px;
+          border-radius: 8px;
+          text-decoration: none;
+          transition: all 0.2s;
+        }
+
+        .vdf-link:hover {
+          background: rgba(10, 186, 181, 0.2);
+        }
+
+        /* ── Card Body & Meta Bar ── */
         .seq-card-body {
-          padding: 24px;
+          padding: 20px;
           display: flex;
           flex-direction: column;
           gap: 14px;
         }
 
-        .seq-meta-row {
+        .seq-meta-bar {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .seq-meta-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .seq-counter-text {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          font-weight: 700;
+        }
+
+        .seq-meta-right {
+          display: flex;
+          align-items: center;
+        }
+
+        .seq-badge-done {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #059669;
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          padding: 5px 12px;
+          border-radius: 100px;
+        }
+
+        .seq-btn-complete {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #087f7b;
+          background: var(--tiffany-xlight);
+          border: 1.5px solid var(--tiffany);
+          padding: 6px 14px;
+          border-radius: 100px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s;
+        }
+
+        .seq-btn-complete:hover {
+          background: var(--tiffany);
+          color: #fff;
         }
 
         .seq-title {
@@ -1143,24 +1244,46 @@ export default function Student() {
           font-weight: 700;
           color: var(--text-primary);
           margin: 0;
+          line-height: 1.35;
         }
 
         .seq-description {
-          font-size: 0.95rem;
+          font-size: 0.92rem;
           color: var(--text-secondary);
           line-height: 1.6;
           margin: 0;
         }
 
-        .seq-nav-actions {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+        /* ── Nav Grid ── */
+        .seq-nav-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
           gap: 12px;
-          margin-top: 8px;
-          padding-top: 18px;
+          margin-top: 6px;
+          padding-top: 16px;
           border-top: 1px solid var(--border);
-          flex-wrap: wrap;
+        }
+
+        .seq-nav-btn {
+          width: 100%;
+          justify-content: center;
+          padding: 12px 14px;
+          font-size: 0.92rem;
+          font-weight: 700;
+          border-radius: 12px;
+        }
+
+        @media (max-width: 480px) {
+          .seq-card-body {
+            padding: 16px;
+          }
+          .seq-title {
+            font-size: 1.15rem;
+          }
+          .seq-nav-btn {
+            font-size: 0.85rem;
+            padding: 10px 8px;
+          }
         }
       `}</style>
     </>
