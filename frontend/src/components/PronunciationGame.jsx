@@ -15,7 +15,9 @@ export default function PronunciationGame({ game, onComplete }) {
 
   const supported = !!SpeechRecognition;
 
-  const currentWord = words[currentIndex] || '';
+  const rawItem = words[currentIndex] || '';
+  const currentWord = typeof rawItem === 'object' ? (rawItem.word || '') : (rawItem || '');
+  const currentTranslation = typeof rawItem === 'object' ? (rawItem.translation || '') : '';
 
   const speakText = (text) => {
     if ('speechSynthesis' in window) {
@@ -163,12 +165,30 @@ export default function PronunciationGame({ game, onComplete }) {
         >
           <i className="ph-fill ph-speaker-high"></i>
         </button>
-        <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: 12, letterSpacing: '0.1em', fontWeight: 500 }}>
+        <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: 10, letterSpacing: '0.1em', fontWeight: 600 }}>
           ПРОИЗНЕСИТЕ СЛОВО
         </div>
-        <div style={{ fontSize: '3rem', fontWeight: 700, color: '#fff', letterSpacing: '0.05em' }}>
+        <div style={{ fontSize: '3rem', fontWeight: 800, color: '#fff', letterSpacing: '0.05em', lineHeight: 1.1 }}>
           {currentWord}
         </div>
+        {currentTranslation && (
+          <div style={{
+            marginTop: 14,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'rgba(0, 0, 0, 0.25)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: 100,
+            padding: '6px 18px',
+            color: '#fff',
+            fontSize: '1.15rem',
+            fontWeight: 700,
+            backdropFilter: 'blur(4px)'
+          }}>
+            💡 {currentTranslation}
+          </div>
+        )}
       </div>
 
       {/* Status feedback */}

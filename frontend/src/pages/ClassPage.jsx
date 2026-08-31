@@ -92,7 +92,7 @@ export default function ClassPage() {
       title: '',
       gameType: 'match_pairs',
       pairs: [{ word: '', translation: '' }],
-      words: [''],
+      words: [{ word: '', translation: '' }],
       questions: [{ question: '', options: ['', '', '', ''], answer: 0 }],
     });
     setError('');
@@ -101,11 +101,14 @@ export default function ClassPage() {
 
   const openEditGame = (game) => {
     setEditGame(game);
+    const normalizedWords = (game.data?.words || []).map(w =>
+      typeof w === 'string' ? { word: w, translation: '' } : { word: w.word || '', translation: w.translation || '' }
+    );
     setGameForm({
       title: game.title || '',
       gameType: game.type || 'match_pairs',
       pairs: game.data?.pairs?.length ? game.data.pairs : [{ word: '', translation: '' }],
-      words: game.data?.words?.length ? game.data.words : [''],
+      words: normalizedWords.length ? normalizedWords : [{ word: '', translation: '' }],
       questions: game.data?.questions?.length ? game.data.questions : [{ question: '', options: ['', '', '', ''], answer: 0 }],
     });
     setError('');
@@ -177,13 +180,18 @@ export default function ClassPage() {
       const type = gameForm.gameType;
       if (type === 'match_pairs') {
         if (gameForm.pairs.some(p => !p.word.trim() || !p.translation.trim())) {
-          setError('Заполните все пары слов'); setSaving(false); return;
+          setError('Заполните все пары слов (слово и перевод)'); setSaving(false); return;
         }
         data = { pairs: gameForm.pairs.map(p => ({ word: p.word.trim(), translation: p.translation.trim() })) };
       } else if (type === 'anagram' || type === 'pronunciation') {
-        const words = gameForm.words.filter(w => w.trim());
-        if (words.length === 0) { setError('Добавьте хотя бы одно слово'); setSaving(false); return; }
-        data = { words };
+        const validWords = gameForm.words
+          .map(w => typeof w === 'string' ? { word: w.trim(), translation: '' } : { word: (w.word || '').trim(), translation: (w.translation || '').trim() })
+          .filter(w => w.word);
+
+        if (validWords.length === 0) {
+          setError('Добавьте хотя бы одно слово'); setSaving(false); return;
+        }
+        data = { words: validWords };
       } else if (type === 'quiz') {
         const qs = gameForm.questions;
         if (qs.some(q => !q.question.trim() || q.options.some(o => !o.trim()))) {
@@ -574,28 +582,61 @@ export default function ClassPage() {
                 </div>
               )}
 
-              {/* Anagram / Pronunciation form */}
+              {/* Anagram / Pronunciation form with Word + Translation inputs */}
               {(gameForm.gameType === 'anagram' || gameForm.gameType === 'pronunciation') && (
                 <div>
-                  <div className="form-label" style={{ marginBottom: 12 }}>
-                    {gameForm.gameType === 'anagram' ? 'Слова для угадывания (на английском)' : 'Слова для произношения (на английском)'}
+                  <div className="form-label" style={{ marginBottom: 6 }}>
+                    {gameForm.gameType === 'anagram' ? 'Слова для анаграммы (Английский — Перевод)' : 'Слова для произношения (Английский — Перевод)'}
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                    💡 Добавьте перевод рядом со словом, чтобы новичкам было легко учиться
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                    {gameForm.words.map((word, idx) => (
-                      <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <input className="form-input" placeholder="apple" value={word}
-                          onChange={(e) => { const w = [...gameForm.words]; w[idx] = e.target.value; setGameForm({ ...gameForm, words: w }); }}
-                          style={{ flex: 1 }} />
-                        <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
-                          onClick={() => setGameForm({ ...gameForm, words: gameForm.words.filter((_, i) => i !== idx) })}
-                          disabled={gameForm.words.length === 1}>
-                          <i className="ph ph-trash"></i>
-                        </button>
-                      </div>
-                    ))}
+                    {gameForm.words.map((item, idx) => {
+                      const wordVal = typeof item === 'object' ? (item.word || '') : (item || '');
+                      const transVal = typeof item === 'object' ? (item.translation || '') : '';
+                      return (
+                        <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <input
+                            className="form-input"
+                            placeholder="Apple (английский)"
+                            value={wordVal}
+                            onChange={(e) => {
+                              const w = [...gameForm.words];
+                              w[idx] = { word: e.target.value, translation: transVal };
+                              setGameForm({ ...gameForm, words: w });
+                            }}
+                            style={{ flex: 1 }}
+                          />
+                          <input
+                            className="form-input"
+                            placeholder="Алма / Яблоко (перевод)"
+                            value={transVal}
+                            onChange={(e) => {
+                              const w = [...gameForm.words];
+                              w[idx] = { word: wordVal, translation: e.target.value };
+                              setGameForm({ ...gameForm, words: w });
+                            }}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: 'var(--danger)' }}
+                            onClick={() => setGameForm({ ...gameForm, words: gameForm.words.filter((_, i) => i !== idx) })}
+                            disabled={gameForm.words.length === 1}
+                          >
+                            <i className="ph ph-trash"></i>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <button type="button" className="btn btn-secondary btn-sm"
-                    onClick={() => setGameForm({ ...gameForm, words: [...gameForm.words, ''] })}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setGameForm({ ...gameForm, words: [...gameForm.words, { word: '', translation: '' }] })}
+                  >
                     <i className="ph ph-plus"></i> Добавить слово
                   </button>
                 </div>

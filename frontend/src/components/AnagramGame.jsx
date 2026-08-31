@@ -29,8 +29,14 @@ export default function AnagramGame({ game, onComplete }) {
     }
   }, [currentIndex]);
 
+  const rawItem = words[currentIndex] || '';
+  const currentWord = typeof rawItem === 'object' ? (rawItem.word || '') : (rawItem || '');
+  const currentTranslation = typeof rawItem === 'object' ? (rawItem.translation || '') : '';
+  const wordLength = currentWord.length;
+
   const resetWord = (idx) => {
-    const word = words[idx];
+    const item = words[idx] || '';
+    const word = typeof item === 'object' ? (item.word || '') : (item || '');
     const shuffled = shuffleLetters(word);
     setLetters(shuffled.map((l, i) => ({ letter: l, used: false, id: i })));
     setSelected([]);
@@ -59,12 +65,12 @@ export default function AnagramGame({ game, onComplete }) {
     setSelected(newSelected);
 
     // Check if word is complete
-    const currentWord = words[currentIndex].toUpperCase();
+    const targetWord = currentWord.toUpperCase();
     const attempt = newSelected.map(s => s.letter).join('');
-    if (attempt.length === currentWord.length) {
-      if (attempt === currentWord) {
+    if (attempt.length === targetWord.length) {
+      if (attempt === targetWord) {
         setStatus('correct');
-        speakText(words[currentIndex]);
+        speakText(currentWord);
         setScore(s => s + 1);
         setTimeout(() => {
           if (currentIndex + 1 >= words.length) {
@@ -108,9 +114,6 @@ export default function AnagramGame({ game, onComplete }) {
     );
   }
 
-  const currentWord = words[currentIndex] || '';
-  const wordLength = currentWord.length;
-
   return (
     <div style={{ maxWidth: 560, margin: '0 auto' }}>
       {/* Progress & Audio Hint */}
@@ -136,6 +139,27 @@ export default function AnagramGame({ game, onComplete }) {
           </div>
         </div>
       </div>
+
+      {/* Translation Clue for Beginners */}
+      {currentTranslation && (
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--tiffany-xlight)',
+            color: 'var(--tiffany-dark)',
+            border: '1.5px solid var(--tiffany)',
+            borderRadius: 100,
+            padding: '8px 22px',
+            fontSize: '1.15rem',
+            fontWeight: 700,
+            boxShadow: '0 4px 12px rgba(10,186,181,0.15)'
+          }}>
+            💡 Котормосу: <strong>{currentTranslation}</strong>
+          </span>
+        </div>
+      )}
 
       {/* Answer slots */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 32, flexWrap: 'wrap' }}>
