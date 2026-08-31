@@ -48,14 +48,15 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
 
   const driveMatch = video.url ? video.url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/) : null;
   const driveFileId = driveMatch ? driveMatch[1] : null;
-  const streamUrl = driveFileId ? `${API_BASE_URL}/videos/stream/${driveFileId}` : null;
 
   const handlePlayClick = () => {
     if (onPlay) onPlay();
-    if (streamUrl || embedUrl) {
+    if (driveFileId) {
+      window.open(`https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`, '_blank', 'noopener,noreferrer');
+    } else if (embedUrl) {
       setShowModal(true);
     } else {
-      window.open(video.url, '_blank');
+      window.open(video.url, '_blank', 'noopener,noreferrer');
     }
   };
 
