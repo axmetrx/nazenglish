@@ -31,11 +31,21 @@ export default function ClassPage() {
   
   const [showAddGame, setShowAddGame] = useState(false);
   const [editGame, setEditGame] = useState(null);
+  const [gameCategoryFilter, setGameCategoryFilter] = useState('all');
+
+  const GAME_CATEGORIES = [
+    { type: 'all', label: 'Бардыгы / Все', icon: '✨' },
+    { type: 'match_pairs', label: 'Найди пару', icon: '🃏' },
+    { type: 'anagram', label: 'Анаграмма', icon: '🔤' },
+    { type: 'quiz', label: 'Тест / Квиз', icon: '📖' },
+    { type: 'pronunciation', label: 'Произношение', icon: '🎤' },
+  ];
+
   const [gameForm, setGameForm] = useState({
     title: '',
     gameType: 'match_pairs',
     pairs: [{ word: '', translation: '' }],
-    words: [''],
+    words: [{ word: '', translation: '' }],
     questions: [{ question: '', options: ['', '', '', ''], answer: 0 }],
   });
 
@@ -86,11 +96,12 @@ export default function ClassPage() {
     setShowAddVideo(true);
   };
 
-  const openAddGame = () => {
+  const openAddGame = (defaultType = 'match_pairs') => {
     setEditGame(null);
+    const selectedType = defaultType !== 'all' ? defaultType : 'match_pairs';
     setGameForm({
       title: '',
-      gameType: 'match_pairs',
+      gameType: selectedType,
       pairs: [{ word: '', translation: '' }],
       words: [{ word: '', translation: '' }],
       questions: [{ question: '', options: ['', '', '', ''], answer: 0 }],
@@ -324,63 +335,140 @@ export default function ClassPage() {
           {/* Games Tab */}
           {tab === 'games' && (
             <div className="fade-in">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-                <h2>Интерактивные игры</h2>
-                <button className="btn btn-primary" onClick={openAddGame}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h2>Интерактивные игры</h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: 4 }}>
+                    Всего игр: <strong>{games.length}</strong> • Выберите категорию для удобной фильтрации
+                  </p>
+                </div>
+                <button className="btn btn-primary" onClick={() => openAddGame(gameCategoryFilter)}>
                   <i className="ph ph-plus"></i> Создать игру
                 </button>
               </div>
-              {games.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon"><i className="ph ph-game-controller"></i></div>
-                  <h3>Нет игр</h3>
-                  <p>Создайте игру, чтобы ученики могли зарабатывать баллы!</p>
-                  <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={openAddGame}>
-                    <i className="ph ph-plus"></i> Создать первую игру
-                  </button>
-                </div>
-              ) : (
-                <div className="grid-3">
-                  {games.map(game => {
-                    const typeLabels = {
-                      match_pairs: { label: '🃏 Найди пару', xp: '15 XP', info: `${game.data.pairs?.length || 0} пар` },
-                      anagram:     { label: '🔤 Анаграмма', xp: '10 XP', info: `${game.data.words?.length || 0} слов` },
-                      quiz:        { label: '📖 Тест/Квиз', xp: '20 XP', info: `${game.data.questions?.length || 0} вопросов` },
-                      pronunciation: { label: '🎤 Произношение', xp: '25 XP', info: `${game.data.words?.length || 0} слов` },
-                    };
-                    const info = typeLabels[game.type] || { label: '🎮 Игра', xp: '?', info: '' };
-                    return (
-                      <div key={game.id} className="card slide-up" style={{ padding: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                          <div>
-                            <div className="badge badge-purple" style={{ marginBottom: 6 }}>{info.label}</div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--tiffany)', fontWeight: 600, marginBottom: 8 }}>+{info.xp} за прохождение</div>
-                            <h3 style={{ fontSize: '1.1rem', marginBottom: 6 }}>{game.title}</h3>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{info.info}</p>
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                            <button
-                              className="btn btn-icon btn-secondary"
-                              title="Редактировать игру"
-                              onClick={() => openEditGame(game)}
-                            >
-                              <i className="ph ph-pencil-simple"></i>
-                            </button>
-                            <button
-                              className="btn btn-icon"
-                              style={{ color: 'var(--danger)' }}
-                              title="Удалить игру"
-                              onClick={() => handleDeleteGame(game.id)}
-                            >
-                              <i className="ph ph-trash"></i>
-                            </button>
+
+              {/* Category Filter Pills */}
+              <div className="game-category-filter-bar">
+                {GAME_CATEGORIES.map(cat => {
+                  const count = cat.type === 'all' ? games.length : games.filter(g => g.type === cat.type).length;
+                  const active = gameCategoryFilter === cat.type;
+                  return (
+                    <button
+                      key={cat.type}
+                      type="button"
+                      className={`game-cat-pill ${active ? 'active' : ''}`}
+                      onClick={() => setGameCategoryFilter(cat.type)}
+                    >
+                      <span className="gcp-icon">{cat.icon}</span>
+                      <span className="gcp-label">{cat.label}</span>
+                      <span className="gcp-count">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(() => {
+                const filteredGames = gameCategoryFilter === 'all'
+                  ? games
+                  : games.filter(g => g.type === gameCategoryFilter);
+
+                if (filteredGames.length === 0) {
+                  const activeCatObj = GAME_CATEGORIES.find(c => c.type === gameCategoryFilter);
+                  return (
+                    <div className="empty-state">
+                      <div className="empty-state-icon"><i className="ph ph-game-controller"></i></div>
+                      <h3>{gameCategoryFilter === 'all' ? 'Нет игр' : `В категории "${activeCatObj?.label}" пока нет игр`}</h3>
+                      <p>
+                        {gameCategoryFilter === 'all'
+                          ? 'Создайте игру, чтобы ученики могли зарабатывать баллы!'
+                          : `Создайте первую игру в разделе "${activeCatObj?.label}"`}
+                      </p>
+                      <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => openAddGame(gameCategoryFilter)}>
+                        <i className="ph ph-plus"></i> Создать {activeCatObj?.label || 'игру'}
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid-3">
+                    {filteredGames.map(game => {
+                      const typeLabels = {
+                        match_pairs: { label: '🃏 Найди пару', xp: '15 XP', info: `${game.data.pairs?.length || 0} пар` },
+                        anagram:     { label: '🔤 Анаграмма', xp: '10 XP', info: `${game.data.words?.length || 0} слов` },
+                        quiz:        { label: '📖 Тест/Квиз', xp: '20 XP', info: `${game.data.questions?.length || 0} вопросов` },
+                        pronunciation: { label: '🎤 Произношение', xp: '25 XP', info: `${game.data.words?.length || 0} слов` },
+                      };
+                      const info = typeLabels[game.type] || { label: '🎮 Игра', xp: '?', info: '' };
+
+                      // Preview snippets of words and translations
+                      let previewTags = [];
+                      if (game.type === 'match_pairs') {
+                        previewTags = (game.data.pairs || []).slice(0, 3).map(p => `${p.word} → ${p.translation}`);
+                      } else if (game.type === 'anagram' || game.type === 'pronunciation') {
+                        previewTags = (game.data.words || []).slice(0, 3).map(w =>
+                          typeof w === 'object' ? `${w.word}${w.translation ? ` (${w.translation})` : ''}` : w
+                        );
+                      } else if (game.type === 'quiz') {
+                        previewTags = (game.data.questions || []).slice(0, 2).map(q => q.question);
+                      }
+
+                      return (
+                        <div key={game.id} className="card slide-up game-admin-card" style={{ padding: 20 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                                <span className="badge badge-purple">{info.label}</span>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--tiffany)', fontWeight: 700 }}>+{info.xp}</span>
+                              </div>
+
+                              <h3 style={{ fontSize: '1.08rem', marginBottom: 6, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                                {game.title}
+                              </h3>
+
+                              <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', fontWeight: 600, marginBottom: 8 }}>
+                                📊 {info.info}
+                              </p>
+
+                              {/* Word tags preview */}
+                              {previewTags.length > 0 && (
+                                <div className="game-preview-tags">
+                                  {previewTags.map((tag, pi) => (
+                                    <span key={pi} className="game-preview-tag" title={tag}>
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {(game.data?.pairs?.length > 3 || game.data?.words?.length > 3 || game.data?.questions?.length > 2) && (
+                                    <span className="game-preview-tag-more">+ещё</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                              <button
+                                className="btn btn-icon btn-secondary"
+                                title="Редактировать игру"
+                                onClick={() => openEditGame(game)}
+                              >
+                                <i className="ph ph-pencil-simple"></i>
+                              </button>
+                              <button
+                                className="btn btn-icon"
+                                style={{ color: 'var(--danger)' }}
+                                title="Удалить игру"
+                                onClick={() => handleDeleteGame(game.id)}
+                              >
+                                <i className="ph ph-trash"></i>
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -743,6 +831,101 @@ export default function ClassPage() {
         .student-name { font-weight: 600; font-size: 0.95rem; }
         .student-date { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
         .student-num { margin-left: auto; color: var(--text-muted); font-size: 0.85rem; }
+
+        /* ── Game Category Filter Bar ── */
+        .game-category-filter-bar {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          padding-bottom: 10px;
+          margin-bottom: 24px;
+          scrollbar-width: thin;
+        }
+
+        .game-cat-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 18px;
+          border-radius: 100px;
+          background: #ffffff;
+          border: 1.5px solid var(--border);
+          color: var(--text-secondary);
+          font-weight: 700;
+          font-size: 0.9rem;
+          cursor: pointer;
+          white-space: nowrap;
+          font-family: inherit;
+          transition: all 0.2s ease;
+        }
+
+        .game-cat-pill:hover {
+          border-color: var(--tiffany);
+          background: var(--tiffany-xlight);
+          color: var(--tiffany-dark);
+        }
+
+        .game-cat-pill.active {
+          background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
+          color: #ffffff;
+          border-color: transparent;
+          box-shadow: 0 4px 14px rgba(10, 186, 181, 0.3);
+        }
+
+        .game-cat-pill.active .gcp-count {
+          background: rgba(255, 255, 255, 0.25);
+          color: #ffffff;
+        }
+
+        .gcp-count {
+          font-size: 0.78rem;
+          background: #f1f5f9;
+          color: #64748b;
+          padding: 2px 8px;
+          border-radius: 100px;
+          font-weight: 800;
+        }
+
+        /* ── Game Admin Cards & Preview Tags ── */
+        .game-admin-card {
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          border: 1.5px solid var(--border);
+        }
+
+        .game-admin-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(10, 186, 181, 0.12);
+        }
+
+        .game-preview-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 10px;
+        }
+
+        .game-preview-tag {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #0f766e;
+          background: #f0fdfa;
+          border: 1px solid #ccfbf1;
+          padding: 2px 8px;
+          border-radius: 6px;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .game-preview-tag-more {
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: var(--text-muted);
+          background: var(--bg-tertiary);
+          padding: 2px 6px;
+          border-radius: 6px;
+        }
       `}</style>
     </>
   );
