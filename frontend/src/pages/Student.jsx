@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { studentsAPI, gamesAPI, dictionaryAPI, homeworksAPI } from '../api/api';
+import { studentsAPI, gamesAPI, dictionaryAPI } from '../api/api';
 import VideoCard from '../components/VideoCard';
 import Navbar from '../components/Navbar';
 import MatchGame from '../components/MatchGame';
@@ -173,30 +173,13 @@ export default function Student() {
     { type: 'quiz', label: t('quiz'), emoji: '📖', xp: '+20 XP', desc: t('quizDesc') },
     { type: 'pronunciation', label: t('pronunciation'), emoji: '🎤', xp: '+25 XP', desc: t('pronunciationDesc') },
   ];
-  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'dictionary' | 'homework' | 'leaderboard'
+  const [tab, setTab] = useState('videos'); // 'videos' | 'games' | 'dictionary' | 'leaderboard'
   const [dictionaryWords, setDictionaryWords] = useState([]);
   const [dictSearch, setDictSearch] = useState('');
   const [dictCategoryFilter, setDictCategoryFilter] = useState('all');
   const [dictViewMode, setDictViewMode] = useState('cards'); // 'cards' | 'flashcards'
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-
-  // Homework state
-  const [homeworks, setHomeworks] = useState([]);
-  const [activeHwToSubmit, setActiveHwToSubmit] = useState(null);
-  const [hwTextAnswer, setHwTextAnswer] = useState('');
-  const [hwPhoto, setHwPhoto] = useState('');
-  const [hwAudio, setHwAudio] = useState('');
-  const [submittingHw, setSubmittingHw] = useState(false);
-  const [hwError, setHwError] = useState('');
-  const [hwSuccess, setHwSuccess] = useState('');
-
-  // Voice recording state
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const recordTimerRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -216,111 +199,6 @@ export default function Student() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Voice Recording Handlers
-  const startVoiceRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          setHwAudio(reader.result);
-        };
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingSeconds(0);
-      recordTimerRef.current = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
-      }, 1000);
-    } catch (err) {
-      alert('Микрофонго уруксат бериңиз / Пожалуйста, разрешите доступ к микрофону');
-    }
-  };
-
-  const stopVoiceRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
-    }
-  };
-
-  const cancelVoiceRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
-    }
-    setHwAudio('');
-    setRecordingSeconds(0);
-  };
-
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      alert('Файлдын көлөмү 8MB ашпашы керек / Размер файла не должен превышать 8MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setHwPhoto(uploadEvent.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const openSubmitModal = (hw) => {
-    setActiveHwToSubmit(hw);
-    setHwTextAnswer(hw.text_content || '');
-    setHwPhoto(hw.media_url || '');
-    setHwAudio(hw.audio_url || '');
-    setHwError('');
-    setHwSuccess('');
-    setIsRecording(false);
-    setRecordingSeconds(0);
-  };
-
-  const handleSubmitHomework = async (e) => {
-    e.preventDefault();
-    if (!hwTextAnswer.trim() && !hwPhoto && !hwAudio) {
-      setHwError('Жооптун текстин жазыңыз, сүрөт же үн жаздыруу тиркеңиз');
-      return;
-    }
-    setSubmittingHw(true);
-    setHwError('');
-    try {
-      await homeworksAPI.submit(activeHwToSubmit.id, {
-        text_content: hwTextAnswer,
-        media_url: hwPhoto,
-        audio_url: hwAudio
-      });
-      setHwSuccess('Тапшырма жөнөтүлдү! Мугалим жакын арада текшерет.');
-      setTimeout(() => {
-        setActiveHwToSubmit(null);
-        loadData(true);
-      }, 1500);
-    } catch (err) {
-      setHwError(err.response?.data?.message || 'Ката кетти. Кайра аракет кылыңыз.');
-    } finally {
-      setSubmittingHw(false);
-    }
-  };
-
   useEffect(() => {
     if (!localStorage.getItem('student_token')) {
       navigate('/');
@@ -331,21 +209,17 @@ export default function Student() {
     const interval = setInterval(() => {
       loadData(true);
     }, 15000);
-    return () => {
-      clearInterval(interval);
-      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async (silent = false) => {
     try {
-      const [classRes, gamesRes, leadRes, actRes, dictRes, hwRes] = await Promise.all([
+      const [classRes, gamesRes, leadRes, actRes, dictRes] = await Promise.all([
         studentsAPI.getClass(),
         gamesAPI.getForStudent(),
         studentsAPI.getLeaderboard(),
         studentsAPI.getWeeklyActivity(),
         dictionaryAPI.getForStudent().catch(() => ({ data: [] })),
-        homeworksAPI.getForStudent().catch(() => ({ data: [] })),
       ]);
       setClassData(classRes.data.class);
       setVideos(classRes.data.videos);
@@ -356,7 +230,6 @@ export default function Student() {
       setLeaderboard(leadRes.data);
       setWeeklyActivity(actRes.data);
       setDictionaryWords(dictRes.data || []);
-      setHomeworks(hwRes.data || []);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 404) {
         localStorage.removeItem('student_token');
@@ -539,16 +412,6 @@ export default function Student() {
             </button>
             <button className={`tab ${tab === 'dictionary' ? 'active' : ''}`} onClick={() => { setTab('dictionary'); setActiveGame(null); }}>
               <i className="ph ph-book-open"></i> {t('dictionary')}
-            </button>
-            <button className={`tab ${tab === 'homework' ? 'active' : ''}`} onClick={() => { setTab('homework'); setActiveGame(null); }}>
-              <i className="ph ph-pencil-line"></i> {t('homework')}
-              {(() => {
-                const unsubmitted = homeworks.filter(h => !h.submission_status).length;
-                if (unsubmitted > 0) {
-                  return <span className="badge badge-orange" style={{ marginLeft: 6, padding: '2px 8px', fontSize: '0.75rem', background: '#ffedd5', color: '#c2410c', fontWeight: 800 }}>{unsubmitted}</span>;
-                }
-                return null;
-              })()}
             </button>
             <button className={`tab ${tab === 'leaderboard' ? 'active' : ''}`} onClick={() => { setTab('leaderboard'); setActiveGame(null); }}>
               <i className="ph ph-trophy"></i> {t('leaderboard')}
@@ -1121,128 +984,6 @@ export default function Student() {
             </div>
           )}
 
-          {/* Homework Tab */}
-          {tab === 'homework' && (
-            <div className="fade-in">
-              <div className="section-header" style={{ marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <h2><i className="ph ph-pencil-line"></i> {t('homework')}</h2>
-                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                    {t('homeworkDesc')}
-                  </p>
-                </div>
-                <div className="badge badge-purple" style={{ fontSize: '0.95rem', padding: '6px 14px' }}>
-                  {homeworks.length} {t('homework').toLowerCase()}
-                </div>
-              </div>
-
-              {homeworks.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon"><i className="ph ph-pencil-line"></i></div>
-                  <h3>{t('noHomework')}</h3>
-                  <p>Мугалим жакында жаңы үй тапшырма берет</p>
-                </div>
-              ) : (
-                <div className="grid-2">
-                  {homeworks.map((hw) => {
-                    const isSubmitted = !!hw.submission_status;
-                    const isReviewed = hw.submission_status === 'reviewed';
-                    const isPending = hw.submission_status === 'pending';
-
-                    return (
-                      <div
-                        key={hw.id}
-                        className="card slide-up student-hw-card"
-                        style={{
-                          padding: '24px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 14,
-                          border: isPending ? '2px solid #fdba74' : isReviewed ? '2px solid #a7f3d0' : '1.5px solid var(--border)'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-                            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                              {hw.title}
-                            </h3>
-                            <span className="badge badge-purple" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                              ⭐ +{hw.max_points || 30} XP
-                            </span>
-                          </div>
-
-                          {hw.video_title && (
-                            <div style={{ fontSize: '0.84rem', color: 'var(--tiffany-dark)', fontWeight: 600, marginBottom: 8 }}>
-                              📹 {t('lessons')}: {hw.video_title}
-                            </div>
-                          )}
-
-                          <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-line' }}>
-                            {hw.description}
-                          </p>
-                        </div>
-
-                        {/* Submission status & Feedback */}
-                        <div style={{ background: '#f8fafc', padding: '14px 16px', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                              Абалы:
-                            </span>
-
-                            {!isSubmitted && (
-                              <span className="badge badge-orange" style={{ background: '#ffedd5', color: '#c2410c', fontWeight: 800 }}>
-                                ⏳ {t('statusNotSubmitted')}
-                              </span>
-                            )}
-                            {isPending && (
-                              <span className="badge badge-blue">
-                                📤 {t('statusPending')}
-                              </span>
-                            )}
-                            {isReviewed && (
-                              <span className="badge badge-green" style={{ fontWeight: 800 }}>
-                                ✅ {t('statusReviewed')} {hw.grade ? `(${hw.grade}★)` : ''} • +{hw.points_awarded || 0} XP
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Teacher's comment */}
-                          {isReviewed && hw.teacher_comment && (
-                            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0', fontSize: '0.88rem', color: '#0f766e' }}>
-                              👩‍🏫 <strong>{t('teacherComment')}:</strong> {hw.teacher_comment}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Action row */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: 10, flexWrap: 'wrap', gap: 10 }}>
-                          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                            {hw.deadline && (
-                              <span>📅 {t('deadline')}: {new Date(hw.deadline).toLocaleDateString()}</span>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            className={`btn ${isSubmitted ? 'btn-secondary' : 'btn-primary'}`}
-                            onClick={() => openSubmitModal(hw)}
-                            style={{ minWidth: 140 }}
-                          >
-                            {!isSubmitted ? (
-                              <><i className="ph ph-paper-plane-tilt"></i> {t('submitHomework')}</>
-                            ) : (
-                              <><i className="ph ph-pencil-simple"></i> {t('edit')}</>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Leaderboard Tab */}
           {tab === 'leaderboard' && (
             <div className="fade-in">
@@ -1278,175 +1019,6 @@ export default function Student() {
           )}
         </div>
       </div>
-
-      {/* Student Submit Homework Modal */}
-      {activeHwToSubmit && (
-        <div className="modal-overlay" onClick={() => setActiveHwToSubmit(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <div>
-                <h3 className="modal-title" style={{ margin: 0 }}>
-                  <i className="ph ph-pencil-line"></i> {t('submitHomework')}
-                </h3>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                  {activeHwToSubmit.title}
-                </div>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setActiveHwToSubmit(null)}><i className="ph ph-x"></i></button>
-            </div>
-
-            <form onSubmit={handleSubmitHomework} style={{ overflowY: 'auto', flex: 1, padding: '16px 0' }}>
-              {/* Task instructions recap */}
-              <div style={{ background: '#f0fdfa', border: '1.5px solid #ccfbf1', padding: '14px 18px', borderRadius: 14, marginBottom: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <strong style={{ color: '#0f766e', fontSize: '0.92rem' }}>📋 {t('homeworkDescription')}:</strong>
-                  <span className="badge badge-purple" style={{ fontSize: '0.78rem' }}>⭐ +{activeHwToSubmit.max_points || 30} XP</span>
-                </div>
-                <div style={{ fontSize: '0.92rem', color: '#1e293b', whiteSpace: 'pre-line', lineHeight: 1.5 }}>
-                  {activeHwToSubmit.description}
-                </div>
-              </div>
-
-              {/* 1. Text Answer */}
-              <div className="form-group" style={{ marginBottom: 20 }}>
-                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>✍️ {t('yourAnswerText')}</span>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({t('optional')})</span>
-                </label>
-                <textarea
-                  className="form-input"
-                  placeholder="Бул жерге жообуңузду же сүйлөмдөрдү жазыңыз..."
-                  value={hwTextAnswer}
-                  onChange={(e) => setHwTextAnswer(e.target.value)}
-                  rows={4}
-                />
-              </div>
-
-              {/* 2. Photo Upload */}
-              <div className="form-group" style={{ marginBottom: 20 }}>
-                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>📸 {t('uploadPhoto')}</span>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({t('optional')})</span>
-                </label>
-
-                {!hwPhoto ? (
-                  <label className="hw-upload-box">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handlePhotoUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <div style={{ fontSize: '1.8rem', marginBottom: 4 }}>📷</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--tiffany-dark)' }}>
-                      Сүрөт жүктөө же камерага тартуу
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      PNG, JPG же JPEG (макс 8MB)
-                    </div>
-                  </label>
-                ) : (
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <img
-                      src={hwPhoto}
-                      alt="Uploaded preview"
-                      style={{ maxHeight: 180, borderRadius: 12, border: '1.5px solid var(--border)', objectFit: 'cover' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setHwPhoto('')}
-                      style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        background: 'rgba(0,0,0,0.7)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: 28,
-                        height: 28,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Voice Audio Recorder */}
-              <div className="form-group" style={{ marginBottom: 20 }}>
-                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>🎤 {t('recordVoice')}</span>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({t('optional')})</span>
-                </label>
-
-                <div className="voice-recorder-card">
-                  {!isRecording && !hwAudio && (
-                    <button
-                      type="button"
-                      className="btn-start-record"
-                      onClick={startVoiceRecording}
-                    >
-                      <span className="mic-icon-circle">🎙️</span>
-                      <span>Үн жаздырууну баштоо</span>
-                    </button>
-                  )}
-
-                  {isRecording && (
-                    <div className="recording-live-row">
-                      <div className="recording-pulsing-dot"></div>
-                      <div style={{ fontWeight: 800, color: '#dc2626', fontSize: '1.1rem' }}>
-                        {t('recordingStarted')} 00:{recordingSeconds < 10 ? `0${recordingSeconds}` : recordingSeconds}
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        style={{ background: '#dc2626', color: '#fff', fontWeight: 800, borderRadius: 100, padding: '8px 18px' }}
-                        onClick={stopVoiceRecording}
-                      >
-                        ⏹️ {t('stopRecording')}
-                      </button>
-                    </div>
-                  )}
-
-                  {!isRecording && hwAudio && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--tiffany-dark)' }}>
-                          ✅ Үн жазылды ({recordingSeconds > 0 ? `${recordingSeconds} сек` : 'Аудио'}):
-                        </span>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          style={{ color: 'var(--danger)', fontSize: '0.82rem' }}
-                          onClick={cancelVoiceRecording}
-                        >
-                          🗑️ Өчүрүп кайра жазуу
-                        </button>
-                      </div>
-                      <audio controls src={hwAudio} style={{ width: '100%', height: 42 }} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {hwError && <div className="alert alert-error" style={{ marginBottom: 14 }}>{hwError}</div>}
-              {hwSuccess && <div className="alert alert-success" style={{ marginBottom: 14 }}>{hwSuccess}</div>}
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" className="btn btn-secondary btn-full" onClick={() => setActiveHwToSubmit(null)}>
-                  {t('cancel')}
-                </button>
-                <button type="submit" className="btn btn-primary btn-full" disabled={submittingHw || isRecording}>
-                  {submittingHw ? 'Жөнөтүлүүдө...' : <><i className="ph ph-paper-plane-tilt"></i> {t('submitHomework')}</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .student-hero-banner {
@@ -2401,91 +1973,6 @@ export default function Student() {
           gap: 16px;
           justify-content: center;
           width: 100%;
-        }
-
-        /* ── Student Homework Styles ── */
-        .student-hw-card {
-          transition: all 0.25s ease;
-        }
-
-        .student-hw-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 24px rgba(10, 186, 181, 0.12);
-        }
-
-        .hw-upload-box {
-          border: 2px dashed #cbd5e1;
-          border-radius: 14px;
-          padding: 22px;
-          text-align: center;
-          cursor: pointer;
-          display: block;
-          background: #f8fafc;
-          transition: all 0.2s ease;
-        }
-
-        .hw-upload-box:hover {
-          border-color: var(--tiffany);
-          background: #f0fdfa;
-        }
-
-        .voice-recorder-card {
-          background: #f8fafc;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 16px 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .btn-start-record {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          background: #ffffff;
-          border: 1.5px solid var(--tiffany);
-          color: var(--tiffany-dark);
-          font-weight: 700;
-          font-size: 0.95rem;
-          padding: 10px 22px;
-          border-radius: 100px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 12px rgba(10, 186, 181, 0.15);
-        }
-
-        .btn-start-record:hover {
-          background: var(--tiffany);
-          color: #ffffff;
-          transform: scale(1.03);
-        }
-
-        .mic-icon-circle {
-          font-size: 1.2rem;
-        }
-
-        .recording-live-row {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          width: 100%;
-          justify-content: space-between;
-          flex-wrap: wrap;
-        }
-
-        .recording-pulsing-dot {
-          width: 14px;
-          height: 14px;
-          background: #dc2626;
-          border-radius: 50%;
-          animation: pulse-red 1.2s infinite ease-in-out;
-        }
-
-        @keyframes pulse-red {
-          0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
-          70% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
-          100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
         }
       `}</style>
     </>

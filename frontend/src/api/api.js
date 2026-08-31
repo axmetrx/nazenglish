@@ -17,8 +17,7 @@ api.interceptors.request.use((config) => {
     url === '/students/activity/weekly' ||
     url.startsWith('/students/progress') ||
     url.startsWith('/games/student') ||
-    url.startsWith('/dictionary/student') ||
-    url.startsWith('/homeworks/student')
+    url.startsWith('/dictionary/student')
   ) {
     token = localStorage.getItem('student_token');
   } else {
@@ -117,20 +116,6 @@ export const dictionaryAPI = {
   syncFromGames: (classId) => api.post(`/dictionary/${classId}/sync-games`),
   // Student
   getForStudent: () => api.get('/dictionary/student/list'),
-};
-
-// ─── Homeworks ───────────────────────────────────────────────
-export const homeworksAPI = {
-  // Teacher
-  getByClass: (classId) => api.get(`/homeworks/class/${classId}`),
-  create: (classId, data) => api.post(`/homeworks/class/${classId}`, data),
-  update: (id, data) => api.put(`/homeworks/item/${id}`, data),
-  delete: (id) => api.delete(`/homeworks/item/${id}`),
-  getSubmissions: (homeworkId) => api.get(`/homeworks/submissions/${homeworkId}`),
-  reviewSubmission: (submissionId, data) => api.post(`/homeworks/review/${submissionId}`, data),
-  // Student
-  getForStudent: () => api.get('/homeworks/student/list'),
-  submit: (homeworkId, data) => api.post(`/homeworks/student/submit/${homeworkId}`, data),
 };
 
 export default api;
