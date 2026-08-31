@@ -10,45 +10,78 @@ import PronunciationGame from '../components/PronunciationGame';
 import ActivityChart from '../components/ActivityChart';
 import { t } from '../utils/translations';
 
-function VideoPlayerFrame({ url, title, lessonNumber, isCompleted, onPlay }) {
+function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
-  const [clickedPlay, setClickedPlay] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const playerBoxRef = useRef(null);
 
-  let driveFileId = null;
-  let youtubeEmbedUrl = null;
+  let embedUrl = null;
   let directUrl = url;
+  let driveFileId = null;
 
   // Google Drive
   let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
   if (match) {
     driveFileId = match[1];
+    embedUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
     directUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
   }
 
   // YouTube
-  match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
-  if (match) youtubeEmbedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0&playsinline=1`;
-
-  if (!youtubeEmbedUrl) {
+  if (!embedUrl) {
+    match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
+    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0&playsinline=1`;
+  }
+  if (!embedUrl) {
     match = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
-    if (match) youtubeEmbedUrl = `https://www.youtube.com/embed/${match[1]}?playsinline=1`;
+    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?playsinline=1`;
   }
-  if (!youtubeEmbedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com'))) {
-    youtubeEmbedUrl = url;
+  if (!embedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com') || (url.includes('drive.google.com') && url.includes('preview')))) {
+    embedUrl = url;
   }
 
-  const handleStartWatch = () => {
-    setClickedPlay(true);
-    if (onPlay) onPlay();
-    window.open(directUrl, '_blank', 'noopener,noreferrer');
+  // Fullscreen event listener
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isFs);
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    document.addEventListener('mozfullscreenchange', handleFsChange);
+    document.addEventListener('MSFullscreenChange', handleFsChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+      document.removeEventListener('mozfullscreenchange', handleFsChange);
+      document.removeEventListener('MSFullscreenChange', handleFsChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!playerBoxRef.current) return;
+    const el = playerBoxRef.current;
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
   };
 
-  // If it's YouTube, render embedded iframe
-  if (youtubeEmbedUrl) {
-    return (
-      <div className="video-player-box">
+  return (
+    <div ref={playerBoxRef} className={`video-player-box ${isFullscreen ? 'is-fullscreen' : ''}`}>
+      {embedUrl ? (
         <iframe
-          src={youtubeEmbedUrl}
+          src={embedUrl}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowFullScreen={true}
@@ -57,57 +90,40 @@ function VideoPlayerFrame({ url, title, lessonNumber, isCompleted, onPlay }) {
           loading="eager"
           className="video-player-frame"
         />
-      </div>
-    );
-  }
+      ) : (
+        <a
+          href={directUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="video-fallback-play"
+        >
+          <div className="vfp-icon">▶</div>
+          <div className="vfp-text">{title || 'Видео'}</div>
+          <div className="vfp-sub">{t('openVideo')} ↗</div>
+        </a>
+      )}
 
-  // Option 2: HD Theater Showcase Player for Google Drive video
-  return (
-    <div className="video-theater-card">
-      <div className="vtc-bg-glow-1" />
-      <div className="vtc-bg-glow-2" />
+      {/* Floating Fullscreen Exit Button */}
+      {isFullscreen && (
+        <button
+          className="vdf-fs-close-btn"
+          onClick={toggleFullscreen}
+          title={t('exitFullscreen')}
+        >
+          ✕ {t('exitFullscreen')}
+        </button>
+      )}
 
-      {/* Header pill badges */}
-      <div className="vtc-header-row">
-        <span className="vtc-badge-pill">
-          <span className="vtc-live-dot" /> 📹 Full HD 1080p • {lessonNumber ? `${lessonNumber}-сабак` : 'Видео сабак'}
-        </span>
-        <span className="vtc-xp-pill">
-          ⭐ +10 XP
-        </span>
-      </div>
-
-      {/* Main Center Content */}
-      <div className="vtc-center-content">
-        <div className="vtc-play-pulse-wrap" onClick={handleStartWatch}>
-          <div className="vtc-pulse-ring" />
-          <button type="button" className="vtc-big-play-btn" aria-label="Сабакты көрүү">
-            <i className="ph-fill ph-play"></i>
-          </button>
-        </div>
-
-        <h2 className="vtc-video-title">{title || 'Видео сабак'}</h2>
-
-        <p className="vtc-hint-text">
-          {clickedPlay || isCompleted 
-            ? '✅ Сабак ачылды! Көрүп бүткөндөн кийин кийинки сабакка өтүңүз.' 
-            : '▶ Толук экранда максималдуу сапатта көрүү үчүн басыңыз'}
-        </p>
-
+      {/* Responsive Player Control Bar */}
+      <div className="video-player-controls-bar">
         <button
           type="button"
-          className={`vtc-action-btn ${isCompleted ? 'completed' : ''}`}
-          onClick={handleStartWatch}
+          className="vdf-btn vdf-fs-btn"
+          onClick={toggleFullscreen}
         >
-          <i className="ph-bold ph-play-circle"></i>
-          <span>{isCompleted ? 'Кайра көрүү (HD)' : 'Сабакты көрүү (HD) ▶'}</span>
+          <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
+          <span>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
         </button>
-      </div>
-
-      {/* Footer Info */}
-      <div className="vtc-footer-bar">
-        <span>⚡ Чектөөсүз жана жогорку ылдамдыкта</span>
-        <span>📱 Бардык телефондорго ылайыктуу</span>
       </div>
     </div>
   );
@@ -475,9 +491,6 @@ export default function Student() {
                           <VideoPlayerFrame
                             url={videos[currentLessonIndex].url}
                             title={videos[currentLessonIndex].title}
-                            lessonNumber={currentLessonIndex + 1}
-                            isCompleted={completedVideoIds.has(videos[currentLessonIndex].id)}
-                            onPlay={() => handleCompleteLesson(videos[currentLessonIndex])}
                           />
                         </div>
 
@@ -1438,206 +1451,6 @@ export default function Student() {
           width: 100%;
           background: #000;
           overflow: hidden;
-        }
-
-        /* ── HD Video Theater Card (Option 2) ── */
-        .video-theater-card {
-          position: relative;
-          width: 100%;
-          min-height: 380px;
-          background: linear-gradient(135deg, #041f1d 0%, #06403d 45%, #082f49 100%);
-          border-radius: 20px;
-          overflow: hidden;
-          padding: 28px 32px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .vtc-bg-glow-1 {
-          position: absolute;
-          width: 300px;
-          height: 300px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(10, 186, 181, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
-          top: -80px;
-          right: 10%;
-          pointer-events: none;
-        }
-
-        .vtc-bg-glow-2 {
-          position: absolute;
-          width: 250px;
-          height: 250px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
-          bottom: -60px;
-          left: 10%;
-          pointer-events: none;
-        }
-
-        .vtc-header-row {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .vtc-badge-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: rgba(255, 255, 255, 0.12);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: #ffffff;
-          padding: 6px 16px;
-          border-radius: 100px;
-          font-size: 0.85rem;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-        }
-
-        .vtc-live-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #10b981;
-          box-shadow: 0 0 10px #10b981;
-          animation: pulse 1.5s infinite;
-        }
-
-        .vtc-xp-pill {
-          background: linear-gradient(135deg, #f59e0b, #d97706);
-          color: #ffffff;
-          font-weight: 800;
-          font-size: 0.85rem;
-          padding: 6px 14px;
-          border-radius: 100px;
-          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-        }
-
-        .vtc-center-content {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-          padding: 24px 16px;
-          gap: 16px;
-        }
-
-        .vtc-play-pulse-wrap {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-
-        .vtc-pulse-ring {
-          position: absolute;
-          width: 84px;
-          height: 84px;
-          border-radius: 50%;
-          border: 2px solid var(--tiffany);
-          animation: pulse-ring 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
-        }
-
-        @keyframes pulse-ring {
-          0% { transform: scale(0.9); opacity: 0.8; }
-          50% { transform: scale(1.4); opacity: 0; }
-          100% { transform: scale(0.9); opacity: 0; }
-        }
-
-        .vtc-big-play-btn {
-          width: 72px;
-          height: 72px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #0abab5 0%, #087f7b 100%);
-          border: 3px solid rgba(255, 255, 255, 0.85);
-          color: #ffffff;
-          font-size: 2rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.25s ease;
-          box-shadow: 0 8px 24px rgba(10, 186, 181, 0.45);
-          padding-left: 5px;
-        }
-
-        .vtc-play-pulse-wrap:hover .vtc-big-play-btn {
-          transform: scale(1.1);
-          background: linear-gradient(135deg, #15c7c2 0%, #0abab5 100%);
-          box-shadow: 0 12px 32px rgba(10, 186, 181, 0.65);
-        }
-
-        .vtc-video-title {
-          font-size: clamp(1.3rem, 2.5vw, 1.7rem);
-          font-weight: 800;
-          color: #ffffff;
-          margin: 0;
-          max-width: 600px;
-          line-height: 1.3;
-          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-        }
-
-        .vtc-hint-text {
-          font-size: 0.92rem;
-          color: rgba(255, 255, 255, 0.85);
-          margin: 0;
-          max-width: 520px;
-        }
-
-        .vtc-action-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          background: linear-gradient(135deg, #0abab5, #087f7b);
-          color: #ffffff;
-          font-size: 1.05rem;
-          font-weight: 800;
-          padding: 14px 32px;
-          border-radius: 100px;
-          border: 2px solid rgba(255, 255, 255, 0.6);
-          cursor: pointer;
-          transition: all 0.25s ease;
-          box-shadow: 0 8px 24px rgba(10, 186, 181, 0.35);
-          font-family: inherit;
-        }
-
-        .vtc-action-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 30px rgba(10, 186, 181, 0.55);
-          background: linear-gradient(135deg, #15c7c2, #0abab5);
-        }
-
-        .vtc-action-btn.completed {
-          background: linear-gradient(135deg, #059669, #047857);
-          border-color: #a7f3d0;
-          box-shadow: 0 8px 24px rgba(5, 150, 105, 0.35);
-        }
-
-        .vtc-footer-bar {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-top: 1px solid rgba(255, 255, 255, 0.15);
-          padding-top: 14px;
-          font-size: 0.82rem;
-          color: rgba(255, 255, 255, 0.7);
-          flex-wrap: wrap;
-          gap: 8px;
         }
 
         .video-player-frame {

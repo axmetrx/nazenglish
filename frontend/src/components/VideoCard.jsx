@@ -46,14 +46,9 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
   const embedUrl = getEmbedUrl(video.url);
   const thumbnail = getYoutubeThumbnail(video.url);
 
-  const driveMatch = video.url ? video.url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/) : null;
-  const driveFileId = driveMatch ? driveMatch[1] : null;
-
   const handlePlayClick = () => {
     if (onPlay) onPlay();
-    if (driveFileId) {
-      window.open(`https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`, '_blank', 'noopener,noreferrer');
-    } else if (embedUrl) {
+    if (embedUrl) {
       setShowModal(true);
     } else {
       window.open(video.url, '_blank', 'noopener,noreferrer');
@@ -83,11 +78,11 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           {/* Play button */}
           <div className="vc-play-wrap">
             <div className="vc-play-btn">
-              {streamUrl || embedUrl
+              {embedUrl
                 ? <i className="ph-fill ph-play"></i>
                 : <i className="ph-fill ph-arrow-square-out"></i>}
             </div>
-            <span className="vc-play-label">{streamUrl || embedUrl ? 'Көрүү' : 'Ачуу'}</span>
+            <span className="vc-play-label">{embedUrl ? 'Көрүү' : 'Ачуу'}</span>
           </div>
         </div>
 
@@ -133,23 +128,16 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
             </div>
 
             <div className="vm-player-frame" style={{ background: '#000' }}>
-              {streamUrl ? (
-                <video
-                  src={streamUrl}
-                  controls
-                  autoPlay
-                  playsInline
-                  webkit-playsinline="true"
-                  style={{ width: '100%', height: '100%', display: 'block' }}
-                />
-              ) : (
-                <iframe
-                  src={`${embedUrl}${embedUrl && embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
-                  title={video.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              )}
+              <iframe
+                src={embedUrl}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                allowFullScreen={true}
+                webkitallowfullscreen="true"
+                mozallowfullscreen="true"
+                loading="eager"
+                style={{ width: '100%', height: '100%', border: 'none' }}
+              />
             </div>
           </div>
         </div>
