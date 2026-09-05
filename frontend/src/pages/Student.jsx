@@ -10,9 +10,35 @@ import PronunciationGame from '../components/PronunciationGame';
 import ActivityChart from '../components/ActivityChart';
 import { t } from '../utils/translations';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+function formatVideoTime(seconds) {
+  if (isNaN(seconds) || seconds < 0) return '0:00';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const pad = (n) => (n < 10 ? '0' + n : n);
+  if (h > 0) {
+    return `${h}:${pad(m)}:${pad(s)}`;
+  }
+  return `${m}:${pad(s)}`;
+}
+
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [bufferedPercent, setBufferedPercent] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+
+  const videoRef = useRef(null);
+  const hideControlsTimeout = useRef(null);
+  const progressBarRef = useRef(null);
 
   let embedUrl = null;
   let directUrl = url;
@@ -39,7 +65,99 @@ function VideoPlayerFrame({ url, title }) {
     embedUrl = url;
   }
 
-  // Escape key to exit fullscreen
+  const streamUrl = driveFileId ? `${API_BASE_URL}/videos/stream/${driveFileId}` : null;
+
+  const triggerShowControls = () => {
+    setShowControls(true);
+    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    if (isPlaying) {
+      hideControlsTimeout.current = setTimeout(() => {
+        setShowControls(false);
+        setShowSpeedMenu(false);
+      }, 2800);
+    }
+  };
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setShowControls(true);
+      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    } else {
+      triggerShowControls();
+    }
+    return () => {
+      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+    };
+  }, [isPlaying]);
+
+  const togglePlay = (e) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+    triggerShowControls();
+  };
+
+  const seekRelative = (sec, e) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    const newTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + sec));
+    videoRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    triggerShowControls();
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+      if (videoRef.current.buffered.length > 0 && duration > 0) {
+        const bufEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
+        setBufferedPercent(Math.min(100, (bufEnd / duration) * 100));
+      }
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleScrubberClick = (e) => {
+    e.stopPropagation();
+    if (!progressBarRef.current || duration <= 0 || !videoRef.current) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const seekTime = Math.max(0, Math.min(duration, pos * duration));
+    videoRef.current.currentTime = seekTime;
+    setCurrentTime(seekTime);
+    triggerShowControls();
+  };
+
+  const toggleMute = (e) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    const nextMuted = !isMuted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+    triggerShowControls();
+  };
+
+  const changeSpeed = (rate, e) => {
+    if (e) e.stopPropagation();
+    if (!videoRef.current) return;
+    videoRef.current.playbackRate = rate;
+    setPlaybackRate(rate);
+    setShowSpeedMenu(false);
+    triggerShowControls();
+  };
+
+  // Escape key for fullscreen
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
@@ -48,7 +166,7 @@ function VideoPlayerFrame({ url, title }) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [isFullscreen]);
 
-  // Lock body scroll when fullscreen is active
+  // Lock body scroll in fullscreen
   useEffect(() => {
     if (isFullscreen) {
       document.body.style.overflow = 'hidden';
@@ -60,11 +178,33 @@ function VideoPlayerFrame({ url, title }) {
     };
   }, [isFullscreen]);
 
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
     <>
-      {/* 1. Normal In-Page YouTube-style Player */}
-      <div className="yt-player-box">
-        {embedUrl ? (
+      {/* ── YouTube-Style Video Player ── */}
+      <div
+        className={`yt-player-container ${isFullscreen ? 'is-fullscreen' : ''}`}
+        onMouseMove={triggerShowControls}
+        onClick={triggerShowControls}
+      >
+        {streamUrl ? (
+          /* Native HTML5 Video Stream */
+          <video
+            ref={videoRef}
+            src={streamUrl}
+            playsInline
+            webkit-playsinline="true"
+            preload="metadata"
+            className="yt-video-element"
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+          />
+        ) : embedUrl ? (
+          /* Iframe Player (YouTube / Google Drive Fallback) */
           <iframe
             src={embedUrl}
             title={title}
@@ -73,7 +213,7 @@ function VideoPlayerFrame({ url, title }) {
             webkitallowfullscreen="true"
             mozallowfullscreen="true"
             loading="eager"
-            className="yt-player-frame"
+            className="yt-video-element"
           />
         ) : (
           <a
@@ -88,52 +228,189 @@ function VideoPlayerFrame({ url, title }) {
           </a>
         )}
 
-        {/* Clean YouTube-style control bar */}
-        <div className="yt-player-bar">
-          <button
-            type="button"
-            className="yt-fullscreen-btn"
-            onClick={() => setIsFullscreen(true)}
+        {/* 1. Dark Gradient Overlay (fades out during playback) */}
+        {streamUrl && (
+          <div
+            className={`yt-overlay ${showControls || !isPlaying ? 'visible' : 'hidden'}`}
+            onClick={togglePlay}
           >
-            <i className="ph-bold ph-corners-out"></i>
-            <span>{t('fullscreen') || 'Толук экран (Во весь экран)'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. YouTube-Style Fullscreen Theater Modal */}
-      {isFullscreen && (
-        <div className="yt-fullscreen-modal">
-          {/* Top Header Bar with title and clear exit button */}
-          <div className="yt-fs-topbar">
-            <div className="yt-fs-title">
-              <i className="ph-fill ph-film-strip"></i> {title || 'Видео сабак'}
+            {/* Top Bar Header */}
+            <div className="yt-top-header" onClick={(e) => e.stopPropagation()}>
+              <div className="yt-title-badge">
+                <span className="yt-live-tag">HD</span>
+                <span className="yt-title-text">{title || 'Видео сабак'}</span>
+              </div>
+              {isFullscreen && (
+                <button
+                  type="button"
+                  className="yt-top-exit-btn"
+                  onClick={() => setIsFullscreen(false)}
+                >
+                  ✕ {t('exitFullscreen') || 'Чыгуу'}
+                </button>
+              )}
             </div>
+
+            {/* Center Controls (-10s / Play-Pause / +10s) */}
+            <div className="yt-center-controls">
+              <button
+                type="button"
+                className="yt-seek-btn"
+                onClick={(e) => seekRelative(-10, e)}
+                title="-10 секунд"
+                aria-label="-10 секунд"
+              >
+                <i className="ph-bold ph-arrow-counter-clockwise"></i>
+                <span className="yt-seek-num">10</span>
+              </button>
+
+              <button
+                type="button"
+                className="yt-center-play-btn"
+                onClick={togglePlay}
+                title={isPlaying ? 'Пауза' : 'Ойнотуу'}
+                aria-label={isPlaying ? 'Пауза' : 'Ойнотуу'}
+              >
+                <i className={`ph-fill ${isPlaying ? 'ph-pause' : 'ph-play'}`}></i>
+              </button>
+
+              <button
+                type="button"
+                className="yt-seek-btn"
+                onClick={(e) => seekRelative(10, e)}
+                title="+10 секунд"
+                aria-label="+10 секунд"
+              >
+                <i className="ph-bold ph-arrow-clockwise"></i>
+                <span className="yt-seek-num">10</span>
+              </button>
+            </div>
+
+            {/* Bottom Controls Bar & Scrubber */}
+            <div className="yt-bottom-wrapper" onClick={(e) => e.stopPropagation()}>
+              <div className="yt-bottom-meta-row">
+                {/* Timer (0:34 / 18:56) */}
+                <div className="yt-timer-text">
+                  <span>{formatVideoTime(currentTime)}</span>
+                  <span className="yt-timer-divider">/</span>
+                  <span className="yt-timer-total">{formatVideoTime(duration)}</span>
+                </div>
+
+                {/* Right Action Icons */}
+                <div className="yt-bottom-right-actions">
+                  {/* Mute toggle */}
+                  <button
+                    type="button"
+                    className="yt-icon-btn"
+                    onClick={toggleMute}
+                    title={isMuted ? 'Үнүн күйгүзүү' : 'Үнүн өчүрүү'}
+                  >
+                    <i className={`ph-fill ${isMuted ? 'ph-speaker-simple-x' : 'ph-speaker-simple-high'}`}></i>
+                  </button>
+
+                  {/* Speed Selector */}
+                  <div className="yt-speed-wrapper">
+                    <button
+                      type="button"
+                      className="yt-speed-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSpeedMenu(prev => !prev);
+                      }}
+                      title="Ылдамдык"
+                    >
+                      {playbackRate}x
+                    </button>
+
+                    {showSpeedMenu && (
+                      <div className="yt-speed-menu">
+                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                          <button
+                            key={rate}
+                            type="button"
+                            className={`yt-speed-item ${playbackRate === rate ? 'active' : ''}`}
+                            onClick={(e) => changeSpeed(rate, e)}
+                          >
+                            {rate === 1 ? 'Нормалдуу (1x)' : `${rate}x`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Settings Icon */}
+                  <button
+                    type="button"
+                    className="yt-icon-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSpeedMenu(prev => !prev);
+                    }}
+                    title="Орнотуулар"
+                  >
+                    <i className="ph-fill ph-gear"></i>
+                  </button>
+
+                  {/* Fullscreen Toggle */}
+                  <button
+                    type="button"
+                    className="yt-icon-btn yt-fs-icon"
+                    onClick={() => setIsFullscreen(prev => !prev)}
+                    title={isFullscreen ? 'Кичирейтүү' : 'Толук экран'}
+                  >
+                    <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* Red YouTube Scrubber Progress Bar */}
+              <div
+                ref={progressBarRef}
+                className="yt-scrubber-track-area"
+                onClick={handleScrubberClick}
+              >
+                <div className="yt-scrubber-bg-track">
+                  <div
+                    className="yt-scrubber-buffered"
+                    style={{ width: `${bufferedPercent}%` }}
+                  />
+                  <div
+                    className="yt-scrubber-played"
+                    style={{ width: `${progressPercent}%` }}
+                  >
+                    <div className="yt-scrubber-thumb" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Fullscreen button for iframe fallback */}
+        {!streamUrl && (
+          <div className="yt-iframe-bottom-bar">
             <button
               type="button"
-              className="yt-fs-exit-btn"
-              onClick={() => setIsFullscreen(false)}
+              className="yt-iframe-fs-btn"
+              onClick={() => setIsFullscreen(prev => !prev)}
             >
-              ✕ {t('exitFullscreen') || 'Толук экрандан чыгуу'}
+              <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
+              <span>{isFullscreen ? (t('exitFullscreen') || 'Кичирейтүү') : (t('fullscreen') || 'Толук экран')}</span>
             </button>
           </div>
+        )}
 
-          {/* Centered Video View */}
-          <div className="yt-fs-body">
-            {embedUrl && (
-              <iframe
-                src={embedUrl}
-                title={title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-                allowFullScreen={true}
-                webkitallowfullscreen="true"
-                mozallowfullscreen="true"
-                className="yt-fs-iframe"
-              />
-            )}
-          </div>
-        </div>
-      )}
+        {/* Fullscreen Top Exit button for iframe mode */}
+        {!streamUrl && isFullscreen && (
+          <button
+            type="button"
+            className="yt-iframe-fs-close"
+            onClick={() => setIsFullscreen(false)}
+          >
+            ✕ {t('exitFullscreen') || 'Чыгуу'}
+          </button>
+        )}
+      </div>
     </>
   );
 }
@@ -1454,30 +1731,380 @@ export default function Student() {
           box-shadow: var(--shadow-sm);
         }
 
-        /* ── YouTube-Style In-Page Video Player ── */
-        .yt-player-box {
+        /* ══════════════════════════════════════════════════════════════════
+           YOUTUBE MOBILE UI/UX VIDEO PLAYER STYLING
+        ══════════════════════════════════════════════════════════════════ */
+        .yt-player-container {
           position: relative;
           width: 100%;
-          background: #000000;
-          overflow: hidden;
-        }
-
-        .yt-player-frame {
-          width: 100%;
-          aspect-ratio: 16/9;
+          aspect-ratio: 16 / 9;
           min-height: 230px;
-          border: none;
-          display: block;
           background: #000000;
+          border-radius: 16px 16px 0 0;
+          overflow: hidden;
+          user-select: none;
+          -webkit-user-select: none;
         }
 
         @media (min-width: 601px) {
-          .yt-player-frame {
-            min-height: 380px;
+          .yt-player-container {
+            min-height: 400px;
           }
         }
 
-        .yt-player-bar {
+        .yt-video-element {
+          width: 100%;
+          height: 100%;
+          border: none;
+          display: block;
+          background: #000000;
+          object-fit: contain;
+        }
+
+        /* ── Dark Gradient Overlay (Auto-Hiding) ── */
+        .yt-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.85) 0%,
+            rgba(0, 0, 0, 0.35) 25%,
+            transparent 50%,
+            rgba(0, 0, 0, 0.25) 75%,
+            rgba(0, 0, 0, 0.65) 100%
+          );
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 14px 16px;
+          transition: opacity 0.25s ease;
+          pointer-events: auto;
+          cursor: pointer;
+          z-index: 10;
+        }
+
+        .yt-overlay.hidden {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .yt-overlay.visible {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        /* ── Top Header Bar ── */
+        .yt-top-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .yt-title-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          max-width: 80%;
+        }
+
+        .yt-live-tag {
+          font-size: 0.72rem;
+          font-weight: 800;
+          color: #ffffff;
+          background: rgba(255, 0, 0, 0.85);
+          padding: 2px 6px;
+          border-radius: 4px;
+          letter-spacing: 0.05em;
+        }
+
+        .yt-title-text {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: #ffffff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        .yt-top-exit-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: rgba(220, 38, 38, 0.9);
+          color: #ffffff;
+          border: none;
+          font-size: 0.82rem;
+          font-weight: 700;
+          padding: 6px 14px;
+          border-radius: 100px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .yt-top-exit-btn:hover {
+          background: #ef4444;
+          transform: scale(1.05);
+        }
+
+        /* ── Center Controls (-10s / Play-Pause / +10s) ── */
+        .yt-center-controls {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 28px;
+          pointer-events: auto;
+        }
+
+        .yt-seek-btn {
+          position: relative;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.45);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          border: none;
+          color: #ffffff;
+          font-size: 1.4rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.18s ease;
+        }
+
+        .yt-seek-btn:hover {
+          background: rgba(0, 0, 0, 0.7);
+          transform: scale(1.12);
+        }
+
+        .yt-seek-num {
+          position: absolute;
+          font-size: 0.62rem;
+          font-weight: 800;
+          color: #ffffff;
+          bottom: 9px;
+        }
+
+        .yt-center-play-btn {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.55);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 2px solid rgba(255, 255, 255, 0.2);
+          color: #ffffff;
+          font-size: 1.8rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+          padding-left: 3px;
+        }
+
+        .yt-center-play-btn:hover {
+          background: rgba(0, 0, 0, 0.8);
+          transform: scale(1.15);
+          border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ── Bottom Controls Row & Scrubber ── */
+        .yt-bottom-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          pointer-events: auto;
+        }
+
+        .yt-bottom-meta-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 4px;
+        }
+
+        .yt-timer-text {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.92);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          letter-spacing: 0.02em;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+        }
+
+        .yt-timer-divider {
+          margin: 0 4px;
+          opacity: 0.6;
+        }
+
+        .yt-timer-total {
+          opacity: 0.75;
+        }
+
+        .yt-bottom-right-actions {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .yt-icon-btn {
+          background: transparent;
+          border: none;
+          color: #ffffff;
+          font-size: 1.25rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          opacity: 0.9;
+          transition: all 0.15s ease;
+          padding: 4px;
+        }
+
+        .yt-icon-btn:hover {
+          opacity: 1;
+          transform: scale(1.15);
+        }
+
+        .yt-speed-wrapper {
+          position: relative;
+        }
+
+        .yt-speed-btn {
+          background: rgba(255, 255, 255, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          color: #ffffff;
+          font-size: 0.75rem;
+          font-weight: 800;
+          padding: 3px 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .yt-speed-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        .yt-speed-menu {
+          position: absolute;
+          bottom: 34px;
+          right: 0;
+          background: rgba(15, 23, 42, 0.96);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 12px;
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          z-index: 50;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          min-width: 120px;
+        }
+
+        .yt-speed-item {
+          background: transparent;
+          border: none;
+          color: #ffffff;
+          font-size: 0.8rem;
+          font-weight: 600;
+          padding: 8px 12px;
+          border-radius: 8px;
+          text-align: left;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .yt-speed-item:hover,
+        .yt-speed-item.active {
+          background: var(--tiffany);
+          color: #ffffff;
+        }
+
+        /* ── Red YouTube Scrubber Progress Bar ── */
+        .yt-scrubber-track-area {
+          position: relative;
+          width: 100%;
+          height: 14px;
+          display: flex;
+          align-items: flex-end;
+          cursor: pointer;
+          padding-bottom: 2px;
+        }
+
+        .yt-scrubber-bg-track {
+          position: relative;
+          width: 100%;
+          height: 3px;
+          background: rgba(255, 255, 255, 0.25);
+          border-radius: 4px;
+          transition: height 0.15s ease;
+        }
+
+        .yt-scrubber-track-area:hover .yt-scrubber-bg-track {
+          height: 5px;
+        }
+
+        .yt-scrubber-buffered {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.4);
+          border-radius: 4px;
+          pointer-events: none;
+        }
+
+        .yt-scrubber-played {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: #FF0000;
+          border-radius: 4px;
+          pointer-events: none;
+        }
+
+        .yt-scrubber-thumb {
+          position: absolute;
+          right: -6px;
+          top: 50%;
+          transform: translateY(-50%) scale(0);
+          width: 13px;
+          height: 13px;
+          border-radius: 50%;
+          background: #FF0000;
+          box-shadow: 0 0 6px rgba(255, 0, 0, 0.8);
+          border: 2px solid #ffffff;
+          transition: transform 0.15s ease;
+        }
+
+        .yt-scrubber-track-area:hover .yt-scrubber-thumb {
+          transform: translateY(-50%) scale(1);
+        }
+
+        /* ── Fullscreen Pseudo State ── */
+        .yt-player-container.is-fullscreen {
+          position: fixed !important;
+          inset: 0 !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          height: 100dvh !important;
+          background: #000000 !important;
+          z-index: 99999999 !important;
+          border-radius: 0 !important;
+        }
+
+        .yt-iframe-bottom-bar {
           display: flex;
           align-items: center;
           justify-content: flex-end;
@@ -1486,7 +2113,7 @@ export default function Student() {
           border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .yt-fullscreen-btn {
+        .yt-iframe-fs-btn {
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -1503,95 +2130,31 @@ export default function Student() {
           box-shadow: 0 2px 8px rgba(10, 186, 181, 0.35);
         }
 
-        .yt-fullscreen-btn:hover {
+        .yt-iframe-fs-btn:hover {
           transform: translateY(-1px);
           background: linear-gradient(135deg, var(--tiffany-dark), #0369a1);
         }
 
-        /* ── YouTube-Style Fullscreen Overlay Modal ── */
-        .yt-fullscreen-modal {
-          position: fixed !important;
-          inset: 0 !important;
-          top: 0 !important;
-          left: 0 !important;
-          width: 100vw !important;
-          height: 100vh !important;
-          height: 100dvh !important;
-          background: #000000 !important;
-          z-index: 99999999 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          box-sizing: border-box !important;
-          overflow: hidden !important;
-        }
-
-        .yt-fs-topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px 20px;
-          background: rgba(15, 23, 42, 0.95);
-          backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-          z-index: 10;
-          gap: 12px;
-          flex-shrink: 0;
-        }
-
-        .yt-fs-title {
-          color: #ffffff;
-          font-weight: 700;
-          font-size: 0.95rem;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .yt-fs-exit-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
+        .yt-iframe-fs-close {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          z-index: 20;
           background: #dc2626;
           color: #ffffff;
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          border: none;
           font-size: 0.88rem;
           font-weight: 800;
-          font-family: inherit;
           padding: 8px 18px;
           border-radius: 100px;
           cursor: pointer;
-          transition: all 0.2s ease;
-          white-space: nowrap;
           box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
-          flex-shrink: 0;
+          transition: transform 0.2s;
         }
 
-        .yt-fs-exit-btn:hover {
+        .yt-iframe-fs-close:hover {
           background: #ef4444;
-          transform: scale(1.04);
-        }
-
-        .yt-fs-body {
-          flex: 1;
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #000000;
-          overflow: hidden;
-        }
-
-        .yt-fs-iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-          display: block;
+          transform: scale(1.05);
         }
 
         .video-fallback-play {
