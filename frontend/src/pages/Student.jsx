@@ -42,30 +42,54 @@ function VideoPlayerFrame({ url, title }) {
 
   let embedUrl = null;
   let directUrl = url;
-  let driveFileId = null;
+  let streamUrl = null;
 
-  // Google Drive
-  let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
-  if (match) {
-    driveFileId = match[1];
+  // 1. Google Drive (Direct fast CDN preview stream - sub-second buffering)
+  const driveMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
+  if (driveMatch) {
+    const driveFileId = driveMatch[1];
     embedUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
     directUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
   }
 
-  // YouTube
+  // 2. YouTube Standard & Shorts
   if (!embedUrl) {
-    match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
-    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?rel=0&playsinline=1`;
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s?]+)/);
+    if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&playsinline=1`;
   }
   if (!embedUrl) {
-    match = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
-    if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}?playsinline=1`;
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([^?&\s]+)/);
+    if (shortsMatch) embedUrl = `https://www.youtube.com/embed/${shortsMatch[1]}?playsinline=1`;
   }
+
+  // 3. Vimeo
+  if (!embedUrl) {
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) embedUrl = `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  // 4. Pre-formed embed URLs
   if (!embedUrl && (url.includes('youtube.com/embed') || url.includes('player.vimeo.com') || (url.includes('drive.google.com') && url.includes('preview')))) {
     embedUrl = url;
   }
 
-  const streamUrl = driveFileId ? `${API_BASE_URL}/videos/stream/${driveFileId}` : null;
+  // 5. Direct MP4 / WebM / Ogg video files (Native HTML5 player with YouTube controls)
+  if (!embedUrl && /\.(mp4|webm|ogg|m4v)(\?.*)?$/i.test(url)) {
+    streamUrl = url;
+  }
+
+  // Reset state when lesson changes
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setBufferedPercent(0);
+    setShowSpeedMenu(false);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.playbackRate = 1;
+    }
+  }, [url]);
 
   const triggerShowControls = () => {
     setShowControls(true);
@@ -204,7 +228,7 @@ function VideoPlayerFrame({ url, title }) {
             onPause={() => setIsPlaying(false)}
           />
         ) : embedUrl ? (
-          /* Iframe Player (YouTube / Google Drive Fallback) */
+          /* High-Speed Edge CDN Embed Player (Google Drive & YouTube) */
           <iframe
             src={embedUrl}
             title={title}
@@ -228,7 +252,7 @@ function VideoPlayerFrame({ url, title }) {
           </a>
         )}
 
-        {/* 1. Dark Gradient Overlay (fades out during playback) */}
+        {/* 1. Dark Gradient Overlay for HTML5 player */}
         {streamUrl && (
           <div
             className={`yt-overlay ${showControls || !isPlaying ? 'visible' : 'hidden'}`}
@@ -386,17 +410,34 @@ function VideoPlayerFrame({ url, title }) {
           </div>
         )}
 
-        {/* Floating Fullscreen button for iframe fallback */}
-        {!streamUrl && (
+        {/* Sleek bottom control bar for CDN iframe mode (Google Drive & YouTube) */}
+        {!streamUrl && embedUrl && (
           <div className="yt-iframe-bottom-bar">
-            <button
-              type="button"
-              className="yt-iframe-fs-btn"
-              onClick={() => setIsFullscreen(prev => !prev)}
-            >
-              <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
-              <span>{isFullscreen ? (t('exitFullscreen') || 'Кичирейтүү') : (t('fullscreen') || 'Толук экран')}</span>
-            </button>
+            <div className="yt-iframe-title-info">
+              <span className="yt-live-tag">HD</span>
+              <span className="yt-iframe-title-text">{title || 'Видео сабак'}</span>
+            </div>
+            <div className="yt-iframe-actions">
+              <a
+                href={directUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="yt-iframe-open-btn"
+                title={t('openVideo') || 'Ачуу'}
+              >
+                <i className="ph-bold ph-arrow-square-out"></i>
+                <span>{t('openVideo') || 'Ачуу'} ↗</span>
+              </a>
+              <button
+                type="button"
+                className="yt-iframe-fs-btn"
+                onClick={() => setIsFullscreen(prev => !prev)}
+                title={isFullscreen ? (t('exitFullscreen') || 'Кичирейтүү') : (t('fullscreen') || 'Толук экран')}
+              >
+                <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
+                <span>{isFullscreen ? (t('exitFullscreen') || 'Кичирейтүү') : (t('fullscreen') || 'Толук экран')}</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -2102,28 +2143,83 @@ export default function Student() {
           background: #000000 !important;
           z-index: 99999999 !important;
           border-radius: 0 !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+
+        .yt-player-container.is-fullscreen .yt-video-element {
+          flex: 1 !important;
+          width: 100% !important;
+          height: 100% !important;
+          max-height: 100% !important;
         }
 
         .yt-iframe-bottom-bar {
           display: flex;
           align-items: center;
-          justify-content: flex-end;
+          justify-content: space-between;
           padding: 8px 14px;
-          background: #0f172a;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          background: #090e17;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .yt-iframe-title-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+          flex: 1;
+        }
+
+        .yt-iframe-title-text {
+          font-size: 0.86rem;
+          font-weight: 700;
+          color: #f1f5f9;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .yt-iframe-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .yt-iframe-open-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: rgba(255, 255, 255, 0.08);
+          color: #cbd5e1;
+          text-decoration: none;
+          font-size: 0.8rem;
+          font-weight: 600;
+          padding: 6px 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          transition: all 0.2s ease;
+        }
+
+        .yt-iframe-open-btn:hover {
+          background: rgba(255, 255, 255, 0.18);
+          color: #ffffff;
         }
 
         .yt-iframe-fs-btn {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
           color: #ffffff;
-          font-size: 0.88rem;
+          font-size: 0.82rem;
           font-weight: 700;
           font-family: inherit;
-          padding: 8px 18px;
-          border-radius: 10px;
+          padding: 6px 14px;
+          border-radius: 8px;
           border: none;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -2139,7 +2235,7 @@ export default function Student() {
           position: absolute;
           top: 16px;
           right: 16px;
-          z-index: 20;
+          z-index: 2147483647;
           background: #dc2626;
           color: #ffffff;
           border: none;
