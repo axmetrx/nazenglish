@@ -124,6 +124,19 @@ function VideoPlayerFrame({ url, title }) {
           <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
           <span>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
         </button>
+
+        {directUrl && (
+          <a
+            href={directUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="vdf-btn vdf-drive-btn"
+            title="Толук экранда ачуу"
+          >
+            <i className="ph-bold ph-arrow-square-out"></i>
+            <span>{t('openVideo') || 'Чоң экранда ачуу ↗'}</span>
+          </a>
+        )}
       </div>
     </div>
   );
@@ -1456,8 +1469,16 @@ export default function Student() {
         .video-player-frame {
           width: 100%;
           aspect-ratio: 16/9;
+          min-height: 250px;
           border: none;
           display: block;
+          background: #000;
+        }
+
+        @media (min-width: 601px) {
+          .video-player-frame {
+            min-height: 400px;
+          }
         }
 
         /* ── Video Controls Bar ── */
@@ -1711,8 +1732,29 @@ export default function Student() {
         }
 
         @media (max-width: 480px) {
+          .seq-player-container {
+            gap: 14px;
+          }
+          .seq-active-card {
+            border-radius: 16px;
+          }
+          .video-player-frame {
+            min-height: 230px;
+          }
+          .video-player-controls-bar {
+            padding: 8px 10px;
+            gap: 8px;
+            flex-wrap: nowrap;
+          }
+          .vdf-btn {
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            flex: 1;
+            justify-content: center;
+          }
           .seq-card-body {
-            padding: 16px;
+            padding: 14px;
+            gap: 12px;
           }
           .seq-title {
             font-size: 1.15rem;

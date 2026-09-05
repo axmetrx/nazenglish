@@ -348,6 +348,18 @@ export default function VideoCard({ video, index, showActions, onEdit, onDelete,
           border: none;
           display: block;
         }
+
+        @media (max-width: 600px) {
+          .vm-overlay {
+            padding: 10px;
+          }
+          .vm-container {
+            border-radius: 16px;
+          }
+          .vm-header {
+            padding: 12px 16px;
+          }
+        }
       `}</style>
     </>
   );
