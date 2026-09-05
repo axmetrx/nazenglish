@@ -66,15 +66,24 @@ function VideoPlayerFrame({ url, title }) {
   }, []);
 
   const toggleFullscreen = () => {
-    if (!playerBoxRef.current) return;
-    const el = playerBoxRef.current;
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
-      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
+    setIsFullscreen(prev => {
+      const next = !prev;
+      const el = playerBoxRef.current;
+      if (next) {
+        if (el && el.requestFullscreen) {
+          el.requestFullscreen().catch(() => {});
+        } else if (el && el.webkitRequestFullscreen) {
+          el.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+      return next;
+    });
   };
 
   return (
@@ -110,7 +119,7 @@ function VideoPlayerFrame({ url, title }) {
           onClick={toggleFullscreen}
           title={t('exitFullscreen')}
         >
-          ✕ {t('exitFullscreen')}
+          ✕ {t('exitFullscreen') || 'Чыгуу'}
         </button>
       )}
 
@@ -122,21 +131,8 @@ function VideoPlayerFrame({ url, title }) {
           onClick={toggleFullscreen}
         >
           <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
-          <span>{isFullscreen ? t('exitFullscreen') : t('fullscreen')}</span>
+          <span>{isFullscreen ? (t('exitFullscreen') || 'Кичирейтүү') : (t('fullscreen') || 'Толук экран')}</span>
         </button>
-
-        {directUrl && (
-          <a
-            href={directUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="vdf-btn vdf-drive-btn"
-            title="Толук экранда ачуу"
-          >
-            <i className="ph-bold ph-arrow-square-out"></i>
-            <span>{t('openVideo') || 'Чоң экранда ачуу ↗'}</span>
-          </a>
-        )}
       </div>
     </div>
   );
@@ -1468,16 +1464,20 @@ export default function Student() {
 
         .video-player-frame {
           width: 100%;
-          aspect-ratio: 16/9;
-          min-height: 250px;
+          min-height: 380px;
+          height: 52vh;
+          max-height: 520px;
           border: none;
           display: block;
           background: #000;
         }
 
-        @media (min-width: 601px) {
+        @media (min-width: 768px) {
           .video-player-frame {
-            min-height: 400px;
+            min-height: 440px;
+            height: auto;
+            max-height: none;
+            aspect-ratio: 16/9;
           }
         }
 
@@ -1485,33 +1485,33 @@ export default function Student() {
         .video-player-controls-bar {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          background: #f8fafc;
+          justify-content: center;
           padding: 10px 16px;
+          background: #f8fafc;
           border-bottom: 1.5px solid var(--border);
-          flex-wrap: wrap;
         }
 
         .vdf-btn {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
-          font-size: 0.88rem;
-          font-weight: 700;
+          justify-content: center;
+          gap: 8px;
+          font-size: 0.95rem;
+          font-weight: 800;
           font-family: inherit;
-          padding: 8px 16px;
-          border-radius: 10px;
+          padding: 12px 20px;
+          border-radius: 12px;
           text-decoration: none;
           cursor: pointer;
           transition: all 0.2s ease;
           border: 1px solid transparent;
+          width: 100%;
         }
 
         .vdf-fs-btn {
           background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
           color: #ffffff;
-          box-shadow: 0 4px 12px rgba(10, 186, 181, 0.25);
+          box-shadow: 0 4px 14px rgba(10, 186, 181, 0.35);
         }
 
         .vdf-fs-btn:hover {
@@ -1519,41 +1519,37 @@ export default function Student() {
           transform: translateY(-1px);
         }
 
-        .vdf-drive-btn {
-          background: #ffffff;
-          color: #0f766e;
-          border: 1.5px solid #ccfbf1;
-        }
-
-        .vdf-drive-btn:hover {
-          background: #f0fdfa;
-          border-color: var(--tiffany);
-        }
-
         /* ── Floating Fullscreen Exit Button ── */
         .vdf-fs-close-btn {
           position: fixed;
-          top: 16px;
-          right: 16px;
+          top: 20px;
+          right: 20px;
           z-index: 2147483647;
-          background: rgba(0, 0, 0, 0.8);
+          background: rgba(0, 0, 0, 0.85);
           color: #fff;
-          border: 1.5px solid rgba(255, 255, 255, 0.4);
-          padding: 8px 16px;
+          border: 1.5px solid rgba(255, 255, 255, 0.5);
+          padding: 10px 20px;
           border-radius: 100px;
-          font-size: 0.9rem;
-          font-weight: 700;
+          font-size: 0.95rem;
+          font-weight: 800;
           cursor: pointer;
-          backdrop-filter: blur(8px);
+          backdrop-filter: blur(10px);
           font-family: inherit;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
         /* ── Fullscreen Pseudo State (Standard & WebKit) ── */
         .video-player-box:fullscreen,
         .video-player-box:-webkit-full-screen,
         .video-player-box.is-fullscreen {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
           width: 100vw !important;
           height: 100vh !important;
+          height: 100dvh !important;
           background: #000000 !important;
           display: flex !important;
           flex-direction: column !important;
@@ -1562,7 +1558,7 @@ export default function Student() {
           padding: 0 !important;
           margin: 0 !important;
           border-radius: 0 !important;
-          z-index: 2147483646;
+          z-index: 2147483647 !important;
         }
 
         .video-player-box:fullscreen .video-player-frame,
@@ -1571,9 +1567,11 @@ export default function Student() {
           width: 100% !important;
           height: 100% !important;
           max-height: 100vh !important;
+          max-height: 100dvh !important;
           aspect-ratio: auto !important;
           border-radius: 0 !important;
-          object-fit: contain;
+          border: none !important;
+          object-fit: contain !important;
         }
 
         .video-player-box:fullscreen .video-player-controls-bar,
