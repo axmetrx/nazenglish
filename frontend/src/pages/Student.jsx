@@ -13,7 +13,6 @@ import { t } from '../utils/translations';
 function VideoPlayerFrame({ url, title }) {
   if (!url) return null;
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const playerBoxRef = useRef(null);
 
   let embedUrl = null;
   let directUrl = url;
@@ -40,101 +39,102 @@ function VideoPlayerFrame({ url, title }) {
     embedUrl = url;
   }
 
-  // Fullscreen event listener
+  // Escape key to exit fullscreen
   useEffect(() => {
-    const handleFsChange = () => {
-      const isFs = Boolean(
-        document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.mozFullScreenElement ||
-        document.msFullscreenElement
-      );
-      setIsFullscreen(isFs);
+    const handleKey = (e) => {
+      if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
     };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isFullscreen]);
 
-    document.addEventListener('fullscreenchange', handleFsChange);
-    document.addEventListener('webkitfullscreenchange', handleFsChange);
-    document.addEventListener('mozfullscreenchange', handleFsChange);
-    document.addEventListener('MSFullscreenChange', handleFsChange);
-
+  // Lock body scroll when fullscreen is active
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => {
-      document.removeEventListener('fullscreenchange', handleFsChange);
-      document.removeEventListener('webkitfullscreenchange', handleFsChange);
-      document.removeEventListener('mozfullscreenchange', handleFsChange);
-      document.removeEventListener('MSFullscreenChange', handleFsChange);
+      document.body.style.overflow = '';
     };
-  }, []);
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(prev => {
-      const next = !prev;
-      const el = playerBoxRef.current;
-      if (next) {
-        if (el && el.requestFullscreen) {
-          el.requestFullscreen().catch(() => {});
-        } else if (el && el.webkitRequestFullscreen) {
-          el.webkitRequestFullscreen();
-        }
-      } else {
-        if (document.fullscreenElement && document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
-      }
-      return next;
-    });
-  };
+  }, [isFullscreen]);
 
   return (
-    <div ref={playerBoxRef} className={`video-player-box ${isFullscreen ? 'is-fullscreen' : ''}`}>
-      {embedUrl ? (
-        <iframe
-          src={embedUrl}
-          title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-          allowFullScreen={true}
-          webkitallowfullscreen="true"
-          mozallowfullscreen="true"
-          loading="eager"
-          className="video-player-frame"
-        />
-      ) : (
-        <a
-          href={directUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="video-fallback-play"
-        >
-          <div className="vfp-icon">▶</div>
-          <div className="vfp-text">{title || 'Видео'}</div>
-          <div className="vfp-sub">{t('openVideo')} ↗</div>
-        </a>
-      )}
+    <>
+      {/* 1. Normal In-Page YouTube-style Player */}
+      <div className="yt-player-box">
+        {embedUrl ? (
+          <iframe
+            src={embedUrl}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allowFullScreen={true}
+            webkitallowfullscreen="true"
+            mozallowfullscreen="true"
+            loading="eager"
+            className="yt-player-frame"
+          />
+        ) : (
+          <a
+            href={directUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="video-fallback-play"
+          >
+            <div className="vfp-icon">▶</div>
+            <div className="vfp-text">{title || 'Видео'}</div>
+            <div className="vfp-sub">{t('openVideo')} ↗</div>
+          </a>
+        )}
 
-      {/* Floating Fullscreen Exit Button */}
-      {isFullscreen && (
-        <button
-          className="vdf-fs-close-btn"
-          onClick={toggleFullscreen}
-          title={t('exitFullscreen')}
-        >
-          ✕ {t('exitFullscreen') || 'Чыгуу'}
-        </button>
-      )}
-
-      {/* Responsive Player Control Bar */}
-      <div className="video-player-controls-bar">
-        <button
-          type="button"
-          className="vdf-btn vdf-fs-btn"
-          onClick={toggleFullscreen}
-        >
-          <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
-          <span>{isFullscreen ? (t('exitFullscreen') || 'Кичирейтүү') : (t('fullscreen') || 'Толук экран')}</span>
-        </button>
+        {/* Clean YouTube-style control bar */}
+        <div className="yt-player-bar">
+          <button
+            type="button"
+            className="yt-fullscreen-btn"
+            onClick={() => setIsFullscreen(true)}
+          >
+            <i className="ph-bold ph-corners-out"></i>
+            <span>{t('fullscreen') || 'Толук экран (Во весь экран)'}</span>
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* 2. YouTube-Style Fullscreen Theater Modal */}
+      {isFullscreen && (
+        <div className="yt-fullscreen-modal">
+          {/* Top Header Bar with title and clear exit button */}
+          <div className="yt-fs-topbar">
+            <div className="yt-fs-title">
+              <i className="ph-fill ph-film-strip"></i> {title || 'Видео сабак'}
+            </div>
+            <button
+              type="button"
+              className="yt-fs-exit-btn"
+              onClick={() => setIsFullscreen(false)}
+            >
+              ✕ {t('exitFullscreen') || 'Толук экрандан чыгуу'}
+            </button>
+          </div>
+
+          {/* Centered Video View */}
+          <div className="yt-fs-body">
+            {embedUrl && (
+              <iframe
+                src={embedUrl}
+                title={title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                allowFullScreen={true}
+                webkitallowfullscreen="true"
+                mozallowfullscreen="true"
+                className="yt-fs-iframe"
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1454,130 +1454,144 @@ export default function Student() {
           box-shadow: var(--shadow-sm);
         }
 
-        /* ── Video Player & Fullscreen ── */
-        .video-player-box {
+        /* ── YouTube-Style In-Page Video Player ── */
+        .yt-player-box {
           position: relative;
           width: 100%;
-          background: #000;
+          background: #000000;
           overflow: hidden;
         }
 
-        .video-player-frame {
+        .yt-player-frame {
           width: 100%;
-          min-height: 380px;
-          height: 52vh;
-          max-height: 520px;
+          aspect-ratio: 16/9;
+          min-height: 230px;
           border: none;
           display: block;
-          background: #000;
+          background: #000000;
         }
 
-        @media (min-width: 768px) {
-          .video-player-frame {
-            min-height: 440px;
-            height: auto;
-            max-height: none;
-            aspect-ratio: 16/9;
+        @media (min-width: 601px) {
+          .yt-player-frame {
+            min-height: 380px;
           }
         }
 
-        /* ── Video Controls Bar ── */
-        .video-player-controls-bar {
+        .yt-player-bar {
           display: flex;
           align-items: center;
-          justify-content: center;
-          padding: 10px 16px;
-          background: #f8fafc;
-          border-bottom: 1.5px solid var(--border);
+          justify-content: flex-end;
+          padding: 8px 14px;
+          background: #0f172a;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .vdf-btn {
+        .yt-fullscreen-btn {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
           gap: 8px;
-          font-size: 0.95rem;
-          font-weight: 800;
-          font-family: inherit;
-          padding: 12px 20px;
-          border-radius: 12px;
-          text-decoration: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: 1px solid transparent;
-          width: 100%;
-        }
-
-        .vdf-fs-btn {
           background: linear-gradient(135deg, var(--tiffany), var(--tiffany-dark));
           color: #ffffff;
-          box-shadow: 0 4px 14px rgba(10, 186, 181, 0.35);
-        }
-
-        .vdf-fs-btn:hover {
-          background: linear-gradient(135deg, var(--tiffany-dark), #0369a1);
-          transform: translateY(-1px);
-        }
-
-        /* ── Floating Fullscreen Exit Button ── */
-        .vdf-fs-close-btn {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          z-index: 2147483647;
-          background: rgba(0, 0, 0, 0.85);
-          color: #fff;
-          border: 1.5px solid rgba(255, 255, 255, 0.5);
-          padding: 10px 20px;
-          border-radius: 100px;
-          font-size: 0.95rem;
-          font-weight: 800;
-          cursor: pointer;
-          backdrop-filter: blur(10px);
+          font-size: 0.88rem;
+          font-weight: 700;
           font-family: inherit;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+          padding: 8px 18px;
+          border-radius: 10px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(10, 186, 181, 0.35);
         }
 
-        /* ── Fullscreen Pseudo State (Standard & WebKit) ── */
-        .video-player-box:fullscreen,
-        .video-player-box:-webkit-full-screen,
-        .video-player-box.is-fullscreen {
+        .yt-fullscreen-btn:hover {
+          transform: translateY(-1px);
+          background: linear-gradient(135deg, var(--tiffany-dark), #0369a1);
+        }
+
+        /* ── YouTube-Style Fullscreen Overlay Modal ── */
+        .yt-fullscreen-modal {
           position: fixed !important;
+          inset: 0 !important;
           top: 0 !important;
           left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
           width: 100vw !important;
           height: 100vh !important;
           height: 100dvh !important;
           background: #000000 !important;
+          z-index: 99999999 !important;
           display: flex !important;
           flex-direction: column !important;
-          justify-content: center !important;
-          align-items: center !important;
-          padding: 0 !important;
           margin: 0 !important;
-          border-radius: 0 !important;
-          z-index: 2147483647 !important;
+          padding: 0 !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
         }
 
-        .video-player-box:fullscreen .video-player-frame,
-        .video-player-box:-webkit-full-screen .video-player-frame,
-        .video-player-box.is-fullscreen .video-player-frame {
-          width: 100% !important;
-          height: 100% !important;
-          max-height: 100vh !important;
-          max-height: 100dvh !important;
-          aspect-ratio: auto !important;
-          border-radius: 0 !important;
-          border: none !important;
-          object-fit: contain !important;
+        .yt-fs-topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 20px;
+          background: rgba(15, 23, 42, 0.95);
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+          z-index: 10;
+          gap: 12px;
+          flex-shrink: 0;
         }
 
-        .video-player-box:fullscreen .video-player-controls-bar,
-        .video-player-box:-webkit-full-screen .video-player-controls-bar,
-        .video-player-box.is-fullscreen .video-player-controls-bar {
-          display: none !important;
+        .yt-fs-title {
+          color: #ffffff;
+          font-weight: 700;
+          font-size: 0.95rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .yt-fs-exit-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #dc2626;
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          font-size: 0.88rem;
+          font-weight: 800;
+          font-family: inherit;
+          padding: 8px 18px;
+          border-radius: 100px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+          flex-shrink: 0;
+        }
+
+        .yt-fs-exit-btn:hover {
+          background: #ef4444;
+          transform: scale(1.04);
+        }
+
+        .yt-fs-body {
+          flex: 1;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #000000;
+          overflow: hidden;
+        }
+
+        .yt-fs-iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
+          display: block;
         }
 
         .video-fallback-play {
