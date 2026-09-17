@@ -315,6 +315,28 @@ a:hover { color: var(--accent-hover); }
   .navbar-teacher-label { display: inline; }
 }
 
+/* Logout button */
+.navbar-logout-btn {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  padding: 5px 12px !important;
+  border-radius: 100px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+.navbar-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.88) !important;
+  border-color: rgba(239, 68, 68, 1) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
 /* ─── Tabs ────────────────────────────────────────────────────── */
 .cp-tabs {
   display: flex;

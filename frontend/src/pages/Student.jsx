@@ -563,6 +563,12 @@ export default function Student() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('student_token');
+    localStorage.removeItem('student_data');
+    navigate('/');
+  };
+
   if (loading) {
     return (
       <>
@@ -663,8 +669,18 @@ export default function Student() {
                   <div className="sh-profile-details">
                     <div className="sh-greeting">{t('hello')}, 👋</div>
                     <div className="sh-student-name">{studentData?.name || t('student')}</div>
-                    <div className="sh-class-chip">
-                      <i className="ph ph-chalkboard"></i> {classData?.name}
+                    <div className="sh-profile-footer">
+                      <div className="sh-class-chip">
+                        <i className="ph ph-chalkboard"></i> {classData?.name}
+                      </div>
+                      <button
+                        className="sh-logout-btn"
+                        onClick={handleLogout}
+                        title={t('logout')}
+                      >
+                        <i className="ph ph-sign-out"></i>
+                        <span>{t('logout')}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1561,7 +1577,35 @@ export default function Student() {
           font-size: 0.82rem;
           font-weight: 700;
           color: #d0f5f4;
-          margin-top: 4px;
+        }
+
+        .sh-profile-footer {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 6px;
+          flex-wrap: wrap;
+        }
+
+        .sh-logout-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: #ffffff;
+          font-size: 0.76rem;
+          font-weight: 700;
+          padding: 3px 10px;
+          border-radius: 100px;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.2s ease;
+        }
+
+        .sh-logout-btn:hover {
+          background: rgba(239, 68, 68, 0.88);
+          border-color: rgba(239, 68, 68, 1);
         }
 
         @media (max-width: 768px) {

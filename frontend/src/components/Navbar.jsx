@@ -71,16 +71,27 @@ export default function Navbar({ role = 'guest' }) {
           {currentLang === 'kg' ? '🇰🇬 Кыр' : '🇷🇺 Рус'}
         </button>
 
-        {role === 'teacher' && teacherName && (
+        {role === 'teacher' && (
           <>
-            <span className="navbar-user"><i className="ph ph-chalkboard-teacher"></i> {teacherName}</span>
+            {teacherName && (
+              <span className="navbar-user"><i className="ph ph-chalkboard-teacher"></i> {teacherName}</span>
+            )}
             <Link to="/admin/dashboard" className="btn btn-ghost btn-sm" style={{ color: '#fff' }}>{t('classes')}</Link>
-            <button className="btn btn-secondary btn-sm" onClick={handleLogout}>{t('logout')}</button>
+            <button className="btn btn-secondary btn-sm navbar-logout-btn" onClick={handleLogout} title={t('logout')}>
+              <i className="ph ph-sign-out"></i>
+              <span>{t('logout')}</span>
+            </button>
           </>
         )}
-        {role === 'student' && studentName && (
+        {role === 'student' && (
           <>
-            <span className="navbar-user"><i className="ph ph-student"></i> {studentName}</span>
+            {studentName && (
+              <span className="navbar-user"><i className="ph ph-student"></i> {studentName}</span>
+            )}
+            <button className="btn btn-secondary btn-sm navbar-logout-btn" onClick={handleLogout} title={t('logout')}>
+              <i className="ph ph-sign-out"></i>
+              <span>{t('logout')}</span>
+            </button>
           </>
         )}
         {role === 'guest' && (
