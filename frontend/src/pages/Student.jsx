@@ -484,21 +484,23 @@ export default function Student() {
 
   const loadData = async (silent = false) => {
     try {
-      const [classRes, gamesRes, leadRes, actRes, dictRes] = await Promise.all([
-        studentsAPI.getClass(),
-        gamesAPI.getForStudent(),
-        studentsAPI.getLeaderboard(),
-        studentsAPI.getWeeklyActivity(),
-        dictionaryAPI.getForStudent().catch(() => ({ data: [] })),
-      ]);
+      const classRes = await studentsAPI.getClass();
       setClassData(classRes.data.class);
       setVideos(classRes.data.videos);
       if (classRes.data.watchedVideoIds) {
         setCompletedVideoIds(new Set(classRes.data.watchedVideoIds));
       }
-      setGames(gamesRes.data);
-      setLeaderboard(leadRes.data);
-      setWeeklyActivity(actRes.data);
+
+      const [gamesRes, leadRes, actRes, dictRes] = await Promise.all([
+        gamesAPI.getForStudent().catch(() => ({ data: [] })),
+        studentsAPI.getLeaderboard().catch(() => ({ data: [] })),
+        studentsAPI.getWeeklyActivity().catch(() => ({ data: [] })),
+        dictionaryAPI.getForStudent().catch(() => ({ data: [] })),
+      ]);
+
+      setGames(gamesRes.data || []);
+      setLeaderboard(leadRes.data || []);
+      setWeeklyActivity(actRes.data || []);
       setDictionaryWords(dictRes.data || []);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 404) {
@@ -582,8 +584,36 @@ export default function Student() {
     return (
       <>
         <Navbar role="student" />
-        <div className="page-center">
-          <div className="alert alert-error">{error}</div>
+        <div className="page-center" style={{ minHeight: '65vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ maxWidth: 460, width: '100%', textAlign: 'center', padding: '36px 24px', borderRadius: 20 }}>
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>⚠️</div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>
+              {error}
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
+              Сервер временно недоступен или перезапускается. Пожалуйста, подождите пару минут или нажмите «Повторить».
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setError('');
+                  setLoading(true);
+                  loadData();
+                }}
+                style={{ padding: '10px 20px', fontWeight: 700 }}
+              >
+                <i className="ph ph-arrow-clockwise"></i> Повторить попытку
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleLogout}
+                style={{ padding: '10px 20px', fontWeight: 600 }}
+              >
+                <i className="ph ph-sign-out"></i> Выйти
+              </button>
+            </div>
+          </div>
         </div>
       </>
     );
