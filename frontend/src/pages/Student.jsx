@@ -10,7 +10,7 @@ import PronunciationGame from '../components/PronunciationGame';
 import ActivityChart from '../components/ActivityChart';
 import { t } from '../utils/translations';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 function formatVideoTime(seconds) {
   if (isNaN(seconds) || seconds < 0) return '0:00';
