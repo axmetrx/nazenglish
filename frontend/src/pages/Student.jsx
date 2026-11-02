@@ -35,14 +35,14 @@ function VideoPlayerFrame({ url, title }) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showControls, setShowControls] = useState(true);
-
-  // Vercel serverless does NOT support video streaming (4.5 MB limit / 10s timeout).
-  // Always use Google Drive iframe embed on all devices for reliable playback.
-  const [useNativePlayer, setUseNativePlayer] = useState(false);
+  const [isVertical, setIsVertical] = useState(false);
+  const [useNativePlayer, setUseNativePlayer] = useState(true);
+  const [videoError, setVideoError] = useState(false);
 
   const videoRef = useRef(null);
   const hideControlsTimeout = useRef(null);
   const progressBarRef = useRef(null);
+  const isDraggingScrubber = useRef(false);
 
   let embedUrl = null;
   let directUrl = url;
@@ -69,6 +69,7 @@ function VideoPlayerFrame({ url, title }) {
     embedUrl = url;
   }
 
+  // Stream URL via our Vercel Serverless proxy (bypasses Google Drive virus warning & CORS)
   const streamUrl = driveFileId ? `${API_BASE_URL}/videos/stream/${driveFileId}` : null;
 
   // Reset playback state when video changes
@@ -78,6 +79,9 @@ function VideoPlayerFrame({ url, title }) {
     setDuration(0);
     setBufferedPercent(0);
     setShowSpeedMenu(false);
+    setIsVertical(false);
+    setVideoError(false);
+    setUseNativePlayer(true);
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
       videoRef.current.playbackRate = 1;
@@ -91,7 +95,23 @@ function VideoPlayerFrame({ url, title }) {
       hideControlsTimeout.current = setTimeout(() => {
         setShowControls(false);
         setShowSpeedMenu(false);
-      }, 2800);
+      }, 3000);
+    }
+  };
+
+  const toggleControlsVisibility = (e) => {
+    if (e) e.stopPropagation();
+    if (!isPlaying) {
+      setShowControls(true);
+    } else {
+      setShowControls(prev => !prev);
+      if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
+      if (!showControls) {
+        hideControlsTimeout.current = setTimeout(() => {
+          setShowControls(false);
+          setShowSpeedMenu(false);
+        }, 3000);
+      }
     }
   };
 
@@ -111,8 +131,7 @@ function VideoPlayerFrame({ url, title }) {
     if (e) e.stopPropagation();
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
-      setIsPlaying(true);
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
@@ -130,7 +149,7 @@ function VideoPlayerFrame({ url, title }) {
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
+    if (videoRef.current && !isDraggingScrubber.current) {
       setCurrentTime(videoRef.current.currentTime);
       if (videoRef.current.buffered.length > 0 && duration > 0) {
         const bufEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
@@ -142,17 +161,49 @@ function VideoPlayerFrame({ url, title }) {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      const vw = videoRef.current.videoWidth;
+      const vh = videoRef.current.videoHeight;
+      if (vw && vh && vh > vw) {
+        setIsVertical(true);
+      } else {
+        setIsVertical(false);
+      }
     }
+  };
+
+  const seekToClientX = (clientX) => {
+    if (!progressBarRef.current || duration <= 0 || !videoRef.current) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const seekTime = pos * duration;
+    videoRef.current.currentTime = seekTime;
+    setCurrentTime(seekTime);
   };
 
   const handleScrubberClick = (e) => {
     e.stopPropagation();
-    if (!progressBarRef.current || duration <= 0 || !videoRef.current) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    const seekTime = Math.max(0, Math.min(duration, pos * duration));
-    videoRef.current.currentTime = seekTime;
-    setCurrentTime(seekTime);
+    seekToClientX(e.clientX);
+    triggerShowControls();
+  };
+
+  const handleScrubberTouchStart = (e) => {
+    e.stopPropagation();
+    isDraggingScrubber.current = true;
+    if (e.touches && e.touches[0]) {
+      seekToClientX(e.touches[0].clientX);
+    }
+  };
+
+  const handleScrubberTouchMove = (e) => {
+    e.stopPropagation();
+    if (isDraggingScrubber.current && e.touches && e.touches[0]) {
+      seekToClientX(e.touches[0].clientX);
+    }
+  };
+
+  const handleScrubberTouchEnd = (e) => {
+    e.stopPropagation();
+    isDraggingScrubber.current = false;
     triggerShowControls();
   };
 
@@ -196,16 +247,17 @@ function VideoPlayerFrame({ url, title }) {
   }, [isFullscreen]);
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const isDirectStream = Boolean(useNativePlayer && streamUrl);
+  // Use native YouTube-style player whenever streamUrl is available and not in error state
+  const isDirectStream = Boolean(useNativePlayer && streamUrl && !videoError);
 
   return (
     <div
-      className={`yt-player-container ${isFullscreen ? 'is-fullscreen' : ''}`}
+      className={`yt-player-container ${isFullscreen ? 'is-fullscreen' : ''} ${isVertical ? 'is-vertical' : ''}`}
       onMouseMove={isDirectStream ? triggerShowControls : undefined}
-      onClick={isDirectStream ? triggerShowControls : undefined}
+      onClick={isDirectStream ? toggleControlsVisibility : undefined}
     >
       {isDirectStream ? (
-        /* Native Mobile HTML5 Video Stream (Clean mobile UI, no iframe toolbars) */
+        /* YouTube Mobile HTML5 Video with Custom Overlay Controls */
         <video
           ref={videoRef}
           src={streamUrl}
@@ -213,15 +265,19 @@ function VideoPlayerFrame({ url, title }) {
           webkit-playsinline="true"
           preload="metadata"
           className="yt-video-element"
-          onError={() => setUseNativePlayer(false)}
+          onError={() => {
+            console.warn('Native video player error, falling back to iframe');
+            setVideoError(true);
+            setUseNativePlayer(false);
+          }}
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
-          onEnded={() => setIsPlaying(false)}
+          onEnded={() => { setIsPlaying(false); setShowControls(true); }}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
         />
       ) : embedUrl ? (
-        /* Universal H.264 Embed Player for all devices (Google Drive preview) */
+        /* Google Drive / YouTube Iframe Fallback */
         <iframe
           src={embedUrl}
           title={title || 'Видео сабак'}
@@ -245,11 +301,11 @@ function VideoPlayerFrame({ url, title }) {
         />
       )}
 
-      {/* YouTube Mobile UI Controls Overlay (Active on phones for native stream) */}
+      {/* YouTube Mobile UI Controls Overlay */}
       {isDirectStream && (
         <div
           className={`yt-overlay ${showControls || !isPlaying ? 'visible' : 'hidden'}`}
-          onClick={togglePlay}
+          onClick={toggleControlsVisibility}
         >
           {/* Top Bar Header */}
           <div className="yt-top-header" onClick={(e) => e.stopPropagation()}>
@@ -268,7 +324,7 @@ function VideoPlayerFrame({ url, title }) {
             )}
           </div>
 
-          {/* Center Controls (-10s / Play-Pause / +10s) */}
+          {/* Center Controls (-10s / Big Play-Pause / +10s) */}
           <div className="yt-center-controls">
             <button
               type="button"
@@ -288,7 +344,7 @@ function VideoPlayerFrame({ url, title }) {
               title={isPlaying ? 'Пауза' : 'Ойнотуу'}
               aria-label={isPlaying ? 'Пауза' : 'Ойнотуу'}
             >
-              <i className={`ph-fill ${isPlaying ? 'ph-pause' : 'ph-play'}`}></i>
+              <i className={isPlaying ? 'ph-fill ph-pause' : 'ph-fill ph-play'}></i>
             </button>
 
             <button
@@ -385,6 +441,9 @@ function VideoPlayerFrame({ url, title }) {
               ref={progressBarRef}
               className="yt-scrubber-track-area"
               onClick={handleScrubberClick}
+              onTouchStart={handleScrubberTouchStart}
+              onTouchMove={handleScrubberTouchMove}
+              onTouchEnd={handleScrubberTouchEnd}
             >
               <div className="yt-scrubber-bg-track">
                 <div
@@ -1814,22 +1873,36 @@ export default function Student() {
           position: relative;
           width: 100%;
           aspect-ratio: 16 / 9;
-          min-height: 200px;
+          min-height: 220px;
           background: #000000;
           border-radius: 16px 16px 0 0;
           overflow: hidden;
           user-select: none;
           -webkit-user-select: none;
+          touch-action: manipulation;
         }
 
-        @media (max-width: 600px) {
+        .yt-player-container.is-vertical {
+          aspect-ratio: 9 / 16;
+          max-height: min(75vh, 600px);
+          margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
           .yt-player-container {
-            min-height: 210px;
-            aspect-ratio: 16 / 9;
+            min-height: 56.25vw;
+          }
+          .yt-player-container.is-vertical {
+            min-height: 70vh;
+            max-height: 80vh;
+            border-radius: 0;
           }
         }
 
         .yt-video-element {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 100%;
           height: 100%;
           border: none;
@@ -1844,16 +1917,16 @@ export default function Student() {
           inset: 0;
           background: linear-gradient(
             to top,
-            rgba(0, 0, 0, 0.85) 0%,
-            rgba(0, 0, 0, 0.35) 25%,
+            rgba(0, 0, 0, 0.88) 0%,
+            rgba(0, 0, 0, 0.4) 22%,
             transparent 50%,
-            rgba(0, 0, 0, 0.25) 75%,
-            rgba(0, 0, 0, 0.65) 100%
+            rgba(0, 0, 0, 0.3) 75%,
+            rgba(0, 0, 0, 0.7) 100%
           );
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          padding: 14px 16px;
+          padding: 12px 14px;
           transition: opacity 0.25s ease;
           pointer-events: auto;
           cursor: pointer;
@@ -1889,27 +1962,28 @@ export default function Student() {
           font-size: 0.72rem;
           font-weight: 800;
           color: #ffffff;
-          background: rgba(255, 0, 0, 0.85);
-          padding: 2px 6px;
+          background: #FF0000;
+          padding: 2px 7px;
           border-radius: 4px;
           letter-spacing: 0.05em;
+          box-shadow: 0 2px 6px rgba(255, 0, 0, 0.5);
         }
 
         .yt-title-text {
-          font-size: 0.9rem;
+          font-size: 0.92rem;
           font-weight: 700;
           color: #ffffff;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
         }
 
         .yt-top-exit-btn {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          background: rgba(220, 38, 38, 0.9);
+          background: rgba(220, 38, 38, 0.95);
           color: #ffffff;
           border: none;
           font-size: 0.82rem;
@@ -1925,7 +1999,7 @@ export default function Student() {
           transform: scale(1.05);
         }
 
-        /* ── Center Controls (-10s / Play-Pause / +10s) ── */
+        /* ── Center Controls (-10s / Big Play / +10s) ── */
         .yt-center-controls {
           display: flex;
           align-items: center;
@@ -1936,15 +2010,15 @@ export default function Student() {
 
         .yt-seek-btn {
           position: relative;
-          width: 44px;
-          height: 44px;
+          width: 48px;
+          height: 48px;
           border-radius: 50%;
-          background: rgba(0, 0, 0, 0.45);
-          backdrop-filter: blur(6px);
-          -webkit-backdrop-filter: blur(6px);
-          border: none;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           color: #ffffff;
-          font-size: 1.4rem;
+          font-size: 1.5rem;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1952,42 +2026,44 @@ export default function Student() {
           transition: all 0.18s ease;
         }
 
-        .yt-seek-btn:hover {
-          background: rgba(0, 0, 0, 0.7);
+        .yt-seek-btn:hover,
+        .yt-seek-btn:active {
+          background: rgba(0, 0, 0, 0.8);
           transform: scale(1.12);
         }
 
         .yt-seek-num {
           position: absolute;
-          font-size: 0.62rem;
+          font-size: 0.65rem;
           font-weight: 800;
           color: #ffffff;
-          bottom: 9px;
+          bottom: 10px;
         }
 
         .yt-center-play-btn {
-          width: 64px;
-          height: 64px;
+          width: 76px;
+          height: 76px;
           border-radius: 50%;
-          background: rgba(0, 0, 0, 0.55);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          border: 2px solid rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.18);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 2.5px solid rgba(255, 255, 255, 0.65);
           color: #ffffff;
-          font-size: 1.8rem;
+          font-size: 2.2rem;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-          padding-left: 3px;
+          box-shadow: 0 4px 28px rgba(0, 0, 0, 0.55), 0 0 0 8px rgba(255,255,255,0.08);
+          padding-left: 4px;
         }
 
-        .yt-center-play-btn:hover {
-          background: rgba(0, 0, 0, 0.8);
-          transform: scale(1.15);
-          border-color: rgba(255, 255, 255, 0.5);
+        .yt-center-play-btn:hover,
+        .yt-center-play-btn:active {
+          background: rgba(255, 255, 255, 0.35);
+          transform: scale(1.14);
+          border-color: rgba(255, 255, 255, 0.95);
         }
 
         /* ── Bottom Controls Row & Scrubber ── */
@@ -2006,12 +2082,12 @@ export default function Student() {
         }
 
         .yt-timer-text {
-          font-size: 0.78rem;
-          font-weight: 600;
-          color: rgba(255, 255, 255, 0.92);
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.95);
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
           letter-spacing: 0.02em;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
         }
 
         .yt-timer-divider {
@@ -2033,17 +2109,18 @@ export default function Student() {
           background: transparent;
           border: none;
           color: #ffffff;
-          font-size: 1.25rem;
+          font-size: 1.3rem;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          opacity: 0.9;
+          opacity: 0.92;
           transition: all 0.15s ease;
           padding: 4px;
         }
 
-        .yt-icon-btn:hover {
+        .yt-icon-btn:hover,
+        .yt-icon-btn:active {
           opacity: 1;
           transform: scale(1.15);
         }
@@ -2053,18 +2130,19 @@ export default function Student() {
         }
 
         .yt-speed-btn {
-          background: rgba(255, 255, 255, 0.15);
-          border: 1px solid rgba(255, 255, 255, 0.25);
+          background: rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.28);
           color: #ffffff;
-          font-size: 0.75rem;
+          font-size: 0.76rem;
           font-weight: 800;
-          padding: 3px 8px;
+          padding: 3px 9px;
           border-radius: 6px;
           cursor: pointer;
           transition: all 0.15s ease;
         }
 
-        .yt-speed-btn:hover {
+        .yt-speed-btn:hover,
+        .yt-speed-btn:active {
           background: rgba(255, 255, 255, 0.3);
         }
 
@@ -2109,24 +2187,26 @@ export default function Student() {
         .yt-scrubber-track-area {
           position: relative;
           width: 100%;
-          height: 14px;
+          height: 18px;
           display: flex;
           align-items: flex-end;
           cursor: pointer;
-          padding-bottom: 2px;
+          padding-bottom: 4px;
+          touch-action: none;
         }
 
         .yt-scrubber-bg-track {
           position: relative;
           width: 100%;
-          height: 3px;
-          background: rgba(255, 255, 255, 0.25);
+          height: 3.5px;
+          background: rgba(255, 255, 255, 0.28);
           border-radius: 4px;
           transition: height 0.15s ease;
         }
 
-        .yt-scrubber-track-area:hover .yt-scrubber-bg-track {
-          height: 5px;
+        .yt-scrubber-track-area:hover .yt-scrubber-bg-track,
+        .yt-scrubber-track-area:active .yt-scrubber-bg-track {
+          height: 6px;
         }
 
         .yt-scrubber-buffered {
@@ -2134,7 +2214,7 @@ export default function Student() {
           top: 0;
           left: 0;
           height: 100%;
-          background: rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.42);
           border-radius: 4px;
           pointer-events: none;
         }
@@ -2151,20 +2231,21 @@ export default function Student() {
 
         .yt-scrubber-thumb {
           position: absolute;
-          right: -6px;
+          right: -7px;
           top: 50%;
-          transform: translateY(-50%) scale(0);
-          width: 13px;
-          height: 13px;
+          transform: translateY(-50%) scale(1);
+          width: 14px;
+          height: 14px;
           border-radius: 50%;
           background: #FF0000;
-          box-shadow: 0 0 6px rgba(255, 0, 0, 0.8);
+          box-shadow: 0 0 8px rgba(255, 0, 0, 0.9);
           border: 2px solid #ffffff;
           transition: transform 0.15s ease;
         }
 
-        .yt-scrubber-track-area:hover .yt-scrubber-thumb {
-          transform: translateY(-50%) scale(1);
+        .yt-scrubber-track-area:hover .yt-scrubber-thumb,
+        .yt-scrubber-track-area:active .yt-scrubber-thumb {
+          transform: translateY(-50%) scale(1.25);
         }
 
         /* ── Fullscreen Mode ── */
@@ -2179,6 +2260,7 @@ export default function Student() {
           background: #000000 !important;
           z-index: 99999999 !important;
           border-radius: 0 !important;
+          max-height: none !important;
         }
 
         .yt-player-container.is-fullscreen .yt-video-element {
