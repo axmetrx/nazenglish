@@ -52,7 +52,7 @@ function VideoPlayerFrame({ url, title }) {
   let match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([a-zA-Z0-9_-]+)/);
   if (match) {
     driveFileId = match[1];
-    embedUrl = `https://drive.google.com/file/d/${driveFileId}/preview`;
+    embedUrl = `https://drive.google.com/file/d/${driveFileId}/preview?rm=minimal`;
     directUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
   }
 
@@ -221,7 +221,7 @@ function VideoPlayerFrame({ url, title }) {
           onPause={() => setIsPlaying(false)}
         />
       ) : embedUrl ? (
-        /* Universal H.264 Embed Player for Laptop/Desktop (Flawless picture + sound) */
+        /* Universal H.264 Embed Player for all devices (Google Drive preview) */
         <iframe
           src={embedUrl}
           title={title || 'Видео сабак'}
@@ -229,7 +229,10 @@ function VideoPlayerFrame({ url, title }) {
           allowFullScreen={true}
           webkitallowfullscreen="true"
           mozallowfullscreen="true"
+          frameBorder="0"
+          scrolling="no"
           loading="eager"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
           className="yt-video-element"
         />
       ) : (
@@ -1811,7 +1814,7 @@ export default function Student() {
           position: relative;
           width: 100%;
           aspect-ratio: 16 / 9;
-          min-height: 230px;
+          min-height: 200px;
           background: #000000;
           border-radius: 16px 16px 0 0;
           overflow: hidden;
@@ -1821,8 +1824,8 @@ export default function Student() {
 
         @media (max-width: 600px) {
           .yt-player-container {
-            min-height: 260px;
-            aspect-ratio: 16 / 10;
+            min-height: 210px;
+            aspect-ratio: 16 / 9;
           }
         }
 
