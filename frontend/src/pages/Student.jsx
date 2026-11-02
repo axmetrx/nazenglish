@@ -36,13 +36,9 @@ function VideoPlayerFrame({ url, title }) {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  // Smart Player Detection:
-  // - Mobile devices (iPhone, iPad, Android) natively support mobile-recorded videos without desktop iframe toolbar clutter.
-  // - Laptops / PCs use the universal Google Drive preview embed to ensure flawless H.264 playback without black screen.
-  const [useNativePlayer, setUseNativePlayer] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
-  });
+  // Vercel serverless does NOT support video streaming (4.5 MB limit / 10s timeout).
+  // Always use Google Drive iframe embed on all devices for reliable playback.
+  const [useNativePlayer, setUseNativePlayer] = useState(false);
 
   const videoRef = useRef(null);
   const hideControlsTimeout = useRef(null);
