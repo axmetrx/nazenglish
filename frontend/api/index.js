@@ -10,10 +10,12 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Helper to mount routes on both /api/path and /path
+// Helper to mount routes on /api/path, /path and /.netlify/functions/api/path
 const mount = (path, router) => {
   app.use(`/api${path}`, router);
   app.use(path, router);
+  app.use(`/.netlify/functions/api${path}`, router);
+  app.use(`/.netlify/functions/api/api${path}`, router);
 };
 
 mount('/auth', require('../server/routes/auth'));
@@ -23,8 +25,8 @@ mount('/students', require('../server/routes/students'));
 mount('/games', require('../server/routes/games'));
 mount('/dictionary', require('../server/routes/dictionary'));
 
-app.get(['/api/health', '/health'], (req, res) => {
-  res.json({ status: 'ok', message: 'Nazenglish API is running on Vercel 🚀' });
+app.get(['/api/health', '/health', '/.netlify/functions/api/health', '/.netlify/functions/api/api/health'], (req, res) => {
+  res.json({ status: 'ok', message: 'Nazenglish API is running 🚀' });
 });
 
 // 404 handler
