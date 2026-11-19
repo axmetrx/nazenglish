@@ -1,0 +1,17 @@
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm run build"
+
+# Проксирование API запросов на рабочий бэкенд Vercel
+[[redirects]]
+  from = "/api/*"
+  to = "https://nazenglish.vercel.app/api/:splat"
+  status = 200
+  force = true
+
+# SPA роутинг для React Router
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
