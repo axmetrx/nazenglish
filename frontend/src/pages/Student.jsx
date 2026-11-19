@@ -462,6 +462,30 @@ function VideoPlayerFrame({ url, title }) {
         </div>
       )}
 
+      {/* Floating Toolbar for Embed Player (Format Switcher & Fullscreen) */}
+      {!isDirectStream && embedUrl && (
+        <div className="yt-iframe-toolbar">
+          <button
+            type="button"
+            className={`yt-iframe-tool-btn ${isVertical ? 'active' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setIsVertical(prev => !prev); }}
+            title="Форматты өзгөртүү"
+          >
+            {isVertical ? '📺 16:9' : '📱 9:16 Чоңойтуу'}
+          </button>
+
+          <button
+            type="button"
+            className="yt-iframe-tool-btn"
+            onClick={(e) => { e.stopPropagation(); setIsFullscreen(prev => !prev); }}
+            title="Толук экран"
+          >
+            <i className={`ph-bold ${isFullscreen ? 'ph-corners-in' : 'ph-corners-out'}`}></i>
+            <span>{isFullscreen ? 'Чыгуу' : 'Толук экран'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Fullscreen Top Exit button for iframe mode */}
       {!isDirectStream && isFullscreen && (
         <button
@@ -1883,18 +1907,20 @@ export default function Student() {
         }
 
         .yt-player-container.is-vertical {
-          aspect-ratio: 9 / 16;
-          max-height: min(75vh, 600px);
+          aspect-ratio: 9 / 16 !important;
+          min-height: 60vh !important;
+          max-height: 75vh !important;
           margin: 0 auto;
         }
 
         @media (max-width: 768px) {
           .yt-player-container {
-            min-height: 56.25vw;
+            min-height: 230px;
           }
           .yt-player-container.is-vertical {
-            min-height: 70vh;
-            max-height: 80vh;
+            aspect-ratio: 9 / 16 !important;
+            min-height: 68vh !important;
+            max-height: 82vh !important;
             border-radius: 0;
           }
         }
@@ -2288,6 +2314,49 @@ export default function Student() {
         .yt-iframe-fs-close:hover {
           background: #ef4444;
           transform: scale(1.05);
+        }
+
+        /* ── Floating Controls for Embed / Iframe mode ── */
+        .yt-iframe-toolbar {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          z-index: 25;
+          pointer-events: auto;
+        }
+
+        .yt-iframe-tool-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          color: #ffffff;
+          font-size: 0.78rem;
+          font-weight: 700;
+          padding: 6px 14px;
+          border-radius: 100px;
+          cursor: pointer;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+          transition: all 0.2s ease;
+        }
+
+        .yt-iframe-tool-btn:hover,
+        .yt-iframe-tool-btn:active {
+          background: rgba(0, 0, 0, 0.92);
+          border-color: rgba(255, 255, 255, 0.7);
+          transform: scale(1.05);
+        }
+
+        .yt-iframe-tool-btn.active {
+          background: #0d9488;
+          border-color: #2dd4bf;
+          box-shadow: 0 4px 14px rgba(13, 148, 136, 0.5);
         }
 
         .video-fallback-play {
